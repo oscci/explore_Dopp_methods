@@ -39,7 +39,8 @@ Various strategies considered for improving fit:
 * 5. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors.
 
 Overall, though, I think we can proceed with the solution of allowing variances to vary across sessions. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
-Yet another thought: this has made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future.
+
+Yet another thought: this has made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy.
 
 
 ##Chunks of code for setting packages and reading in data 
@@ -52,6 +53,7 @@ require(OpenMx)
 require(stargazer) #simple commands for nice tables
 require(semTools)
 library(DiagrammeR) #for the diagram
+require(stringr)
 
 # Hack to avoid OpenMx errors: Remove Models in case they have already been run...
 rm(mysatFit)
@@ -423,7 +425,7 @@ resVars      <- mxPath( from=mylabels, arrows=2,
 
 # latent variances and covariance: NB assume totally independent, so covariance fixed at zero
 latVars      <- mxPath( from=c("Factor1","Factor2"), arrows=2, connect="unique.pairs",
-                        free=c(T,F,T), values=c(1,0,1), labels=c("varFactor1","cov","varFactor2") )
+                        free=c(T,F,F), values=c(1,0,1), labels=c("varFactor1","cov","varFactor2") )
 #changed the free statement from free =c(T,T,T) (that was error in prereg script: gives underidentified model)
 
 # factor loadings for Factor1 #NB test A loading is fixed to one for this factor
@@ -456,7 +458,7 @@ summarybiF
 myCFI <-round(fitMeasuresMx(biFactorFit)[7],3)
 myrmsea <-round(fitMeasuresMx(biFactorFit)[21],3)
 BICF2 <- round(summarybiF$BIC.Mx,1)
-bigsummary[7,] <- c(myCFI,myrmsea,BICF2,'2 independent factors')
+bigsummary[7,] <- c(myCFI,myrmsea,BICF2,'2 indepdt factors')
 rownames(bigsummary)[7]<-'BiFactor'
 mysummary<-summarybiF$parameters[1:10,c(1,3:6)]
 mysummary$z<-mysummary$Estimate/mysummary$Std.Error
@@ -514,8 +516,8 @@ summarybiFb
 myCFI <-round(fitMeasuresMx(biFactorFitb)[7],3)
 myrmsea <-round(fitMeasuresMx(biFactorFitb)[21],3)
 BICF2b <- round(summarybiFb$BIC.Mx,1)
-bigsummary[8,] <- c(myCFI,myrmsea,BICF2b,'2 independent factors, unconstrained vars')
-rownames(bigsummary)[8]<-'BiFactor - unconstrained var'
+bigsummary[8,] <- c(myCFI,myrmsea,BICF2b,'2 indepdt factors, unconstrained vars')
+rownames(bigsummary)[8]<-'BiFactor b'
 mysummary<-summarybiFb$parameters[1:10,c(1,3:6)]
 mysummary$z<-mysummary$Estimate/mysummary$Std.Error
 mcomp<-mxCompare(biFactorFitb,oneFactorFit)
@@ -529,6 +531,8 @@ mcomp
 bigsummary
 ```
 NB We ought to do the same for variances for one-factor model, otherwise it is an unfair comparison?
+
+Next chunk just redoes the heatmap for the new model.
 
 ```{r covexplore2}
 mymat.e<-mxGetExpected(biFactorFitb,"covariance")
