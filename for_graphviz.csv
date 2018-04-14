@@ -1,0 +1,25 @@
+digraph 'Two Factor Model' {
+"      node [style=filled, fontname='Arial', fontsize=16];"
+      /* Manifest Variables */
+      { rank = max; A; B; C; D; E; F}
+"      A [shape=square, fillcolor='red', height=0.5, width=0.5];"
+"      B [shape=square, fillcolor='#a9fab', height=0.5, width=0.5];"
+"      C [shape=square, fillcolor='#a9fab', height=0.5, width=0.5];"
+"      D [shape=square, fillcolor='#a9fab', height=0.5, width=0.5];"
+"      E [shape=square, fillcolor='#a9fab', height=0.5, width=0.5];"
+"      F [shape=square, fillcolor='#a9fab', height=0.5, width=0.5];"
+"      X1 [shape=circle, fillcolor='#f4fd78'];"
+"      X2 [shape=circle, fillcolor='#f4fd78'];"
+"      X1 -> A[dir=forward,fontname='Arial', fontsize=12,label=1];"
+"      X1 -> B[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X1 -> C[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X1 -> D[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X1 -> E[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X1 -> F[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X2 -> A[dir=forward,fontname='Arial', fontsize=12,label=0];"
+"      X2 -> B[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X2 -> C[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X2 -> D[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X2 -> E[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"      X2 -> F[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+}
