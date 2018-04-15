@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 `r Sys.time()`
+
 ## Background
 We attempted to do the SEM analysis that was preregistered on OSF:
 https://osf.io/9uaw4/register/565fb3678c5e4a66b5582f67
@@ -19,9 +20,11 @@ but encountered problems with model fit.
 This document explains how we have proceeded to investigate this.
 
 My source reference is: Kline, R. B. (2011). Principles and practice of structural equation modeling, 3rd edition. New York: Guilford Press.
-Kline has detailed discussion of testing for fit: is against absolute cutoffs.
+Kline has detailed discussion of testing for fit: is against absolute cutoffs, though notes cutoffs that have been proposed on basis of simulation studies.
+
 RMSEA is absolute index of (badness of) model fit: aim for below .08.
-This value decreases with more DF (greater parsimony) or larger sample size. 
+This value decreases with more DF (greater parsimony) or larger sample size.
+ 
 Comparative fit index (CFI) measures relative improvement in fit of model over baseline model. 
 Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CDI > .95 (see Kline p 208)
 
@@ -29,25 +32,27 @@ Our initial 1 and 2-factor models have poor fit.
 
 Various strategies considered for improving fit:
 
-* 1. Deal with non-normality in the data. We have been using LI computed in the way recommended by Deppe et al, but because this computes mean around an upward or downward peak, it induces bimodality. We have redone analysis computing a laterality measure from overall mean in difference wave over POI. This correlates highly with LI and is normally distributed. It does not, however, fix the problem of poor fit.
+### 1. Deal with non-normality in the data. 
+We have been using LI computed in the way recommended by Deppe et al, but because this computes mean around an upward or downward peak, it induces bimodality. We have redone analysis computing a laterality measure from overall mean in difference wave over POI. This correlates highly with LI and is normally distributed. It does not, however, fix the problem of poor fit. (Makes v little difference!)
 
-* 2. Outliers. We started using our prespecified methods for removing outliers (low N trials OR outlier in distribution). This gives about 6 NA values. Does this affect the model fit? It seems not. I wrote a routine that just substituted the value for that task in session 2 if missing data in session 1 and vice versa, and it made very little difference.
+### 2. Outliers. 
+We started using our prespecified methods for removing outliers (low N trials OR outlier in distribution). This gives about 6 NA values. Does this affect the model fit? It seems not. I wrote a routine that just substituted the value for that task in session 2 if missing data in session 1 and vice versa, and it made very little difference.
 
-* 3. Paul has achieved a good fit with a version run in Lavaan. However, this requires specification of correlated error terms between variables that don't have any theoretical interpretation. Nevertheless, having a Lavaan option is good as we can compare OpenMx and Lavaan outputs : these should be equivalent. See below for an alternative solution to improving fit: we should try this in Lavaan.
+However, in course of doing analysis, I realised our proposed method for outlier exclusion is not optimal. The values we need to exclude are those that are __unreliable__,  not those that are __unusual__. We don't want to lose someone just because they are atypically lateralised. So the sensible criterion to use should be based on the reliability of the LI, and for that we should be looking at those with __high standard error__ of the LI (which indicates trial by trial variation). 
 
-* 4. I have added heatmaps to the script so we can visualise the difference between observed and expected covariances, to get some insight into reasons for poor model fit. This revealed that a major issue was that the variances for the same task could be quite different from Time 1 to Time 2. Because the model had them set as equal, the fit was poor. It can be improved by allowing variances for the same task to be different at Time 1 and Time 2. See below!
+I have taken the data from the original Results_Session1 and 2 data and made script called A2_outlier_se.R which identifies outliers on this basis and writes result to LI_se_exclusions.csv. This identifies 3 datapoints as outliers. NB with this method you don't need to exclude on the basis of N trials: the whole rationale for excluding low N was that the LI estimate would be unreliable, but if someone gets a low SE with a small N trials, we can keep them with this approach. I tried re-running the model with this new rule for exclusions and the fit does improve.
 
-* 5. Looking at the heatmaps also made me question the way we had specified outlier exclusion. The ones we need to exclude are those with __unreliable__ laterality index, not those with __unusual__ LI. We don't want to lose someone just because they are atypically lateralised. So the sensible criterion to use should be based on the reliability of the LI, and for that we should be looking at those with high standard error of the LI (which indicates trial by trial variation). 
+### 3. Tweaking the model. 
+Paul has achieved a good fit with a version run in Lavaan. However, this requires specification of correlated error terms between variables that don't have any theoretical interpretation. I'm really not happy about that. But it got me thinking about the need to understand the reason for poor fit. Basically, poor fit occurs when the observed covariance matrix is not well-matched by the expected covariance matrix - which is just derived from the specified model. We can look at both of these and note where they differ to identify which aspects of the data are causing poor fit.
 
-I have taken the data from the original Results_Session1 and 2 data and made script called A2_outlier_se.R which identifies outliers on this basis and writes result to LI_se_exclusions.csv. This identifies 6 datapoints as outliers. NB with this method you don't need to exclude on the basis of N trials: the whole rationale for excluding low N was that the LI estimate would be unreliable, but if someone gets a low SE with a small N trials, we can keep them with this approach. I tried re-running the model with this new rule for exclusions and the fit does improve.
+I have added heatmaps to the script so we can visualise the difference between observed and expected covariances, to get some insight into reasons for poor model fit. This revealed that a major issue was that the variances for the same task could be quite different from Time 1 to Time 2. Because the model had them set as equal, the fit was poor. It can be improved by allowing variances for the same task to be different at Time 1 and Time 2. See below!
 
-* 6. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors. This was using the original bifactor model.
-
+# In sum
 Overall, I think we could proceed with the solution of allowing variances to vary across sessions and identifying outlier by high SE. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
 
-Yet another thought: this made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy. This could just mean that SentGen is a really good test for picking up individual differences, but it is odd that it shifts from time 1 to time 2 in this way  -and that shift has a big impact on model fit.
+Yet another thought: looking at heatmaps made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy. This could just mean that SentGen is a really good test for picking up individual differences, but it is odd that it shifts from time 1 to time 2 in this way  - and that shift has a big impact on model fit. 
 
-##What does it all mean?
+## What does it all mean?
 I think it's interesting! The models for means and covariances need to be put together to make sense of this.
 
 The models for means indicate that 
@@ -58,7 +63,7 @@ The models for means indicate that
 
 *(c) Models of covariances give a reasonably stable solution in which tasks A-E load on one factor and task F (Jabberwocky) on another. One interpretation would be that there is a single laterality factor for processing meaningful verbal material.
 
-Previously, everyone, and me in particular, has assumed that differences in degree of laterality across tasks mean that there are different underlying factors. But the fact that we get a single factor - except for Jabberwocky - suggests that - at least in this normal sample - there is a single language laterality factor on which people differ, but the observed laterality is also dependent on the task. Which is perhaps not surprising, since each task will place different demands on language processing.
+Previously, everyone, and me in particular, has assumed that differences in degree of laterality across tasks mean that there are different underlying factors. But the fact that we get a single factor - except for Jabberwocky - suggests that - at least in this normal sample - there is a single language laterality factor on which people differ, but the observed laterality is also dependent on the task. Which is perhaps not surprising, since each task will place different demands on language processing. But the key insight is that we need to focus on correlations between tasks rather than whether the mean LI is different between them.
 
 I'm trying to think of an analogy : something like, if we gave people a range of speeded tests of motor skill, there would be fast people and slow people, but the particular speed observed would depend on the particular task they were given.
 
@@ -529,7 +534,7 @@ resVars      <- mxPath( from=mylabels, arrows=2,
                         free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
                         labels=c("e1","e2","e3","e4","e5","e6","e1","e12","e3","e14","e5","e6") )
                         
-Given that this worked well, I went further and allowed the variance terms to vary across sessions for all variables. We then get CFI of .907 and RMSEA of .108.
+Given that this worked well, I went further and allowed the variance terms to vary across sessions for all variables. We then get further improvement of fit.
 
 Here is the model with those settings:
 ##Bifactor model with unconstrained variances for T1 and T2
