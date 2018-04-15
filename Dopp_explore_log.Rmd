@@ -35,12 +35,29 @@ Various strategies considered for improving fit:
 
 * 4. I have added heatmaps to the script so we can visualise the difference between observed and expected covariances, to get some insight into reasons for poor model fit. This revealed that a major issue was that the variances for the same task could be quite different from Time 1 to Time 2. Because the model had them set as equal, the fit was poor. It can be improved by allowing variances for the same task to be different at Time 1 and Time 2. See below!
 
+*5. Looking at the heatmaps also made me question the way we had specified outlier exclusion. The ones we need to exclude are those with __unreliable__ laterality index, not those with _unusual_ LI. We don't want to lose someone just because they are atypically lateralised. So the sensible criterion to use should be based on the reliability of the LI, and for that we should be looking at those with high standard error of the LI (which indicates trial by trial variation). I have taken the data from the original Results_Session1 and 2 data and made script called A2_outlier_se.R which identifies outliers on this basis and writes result to LI_se_exclusions.csv. This identifies 6 cases as outliers. NB with this method you don't need to exclude on the basis of N trials: the whole rationale for excluding low N was that the LI estimate would be unreliable, but if someone gets a low SE with a small N trials, we can keep them with this approach. I tried re-running the model with this new rule for exclusions and the fit does improve.
 
-* 5. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors.
+* 6. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors.
 
-Overall, though, I think we can proceed with the solution of allowing variances to vary across sessions. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
+Overall, though, I think we can proceed with the solution of allowing variances to vary across sessions and identifying outlier by high SE. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
 
-Yet another thought: this has made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy.
+Yet another thought: this made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy.
+
+##What does it all mean?
+I think it's interesting! The models for means and covariances need to be put together to make sense of this.
+
+The models for means indicate that 
+
+*(a) Individual tasks are reasonably reliable - there are task-by-task differences in extent of laterality.
+
+*(b) In terms of strength of laterality, no support for Dorsal-Ventral model (assuming we have appropriately designated our tasks), and modest support for Lexical model.
+
+*(c) Models of covariances give a reasonably stable solution in which tasks A-E load on one factor and task F (Jabberwocky) on another. One interpretation would be that there is a single laterality factor for processing meaningful verbal material.
+
+Previously, everyone, and me in particular, has assumed that differences in degree of laterality across tasks mean that there are different underlying factors. But the fact that we get a single factor - except for Jabberwocky - suggests that - at least in this normal sample - there is a single language laterality factor on which people differ, but the observed laterality is also dependent on the task. Which is perhaps not surprising, since each task will place different demands on language processing.
+
+I'm trying to think of an analogy : something like, if we gave people a range of speeded tests of motor skill, there would be fast people and slow people, but the particular speed observed would depend on the particular task they were given.
+
 
 
 ##Chunks of code for setting packages and reading in data 
@@ -81,10 +98,12 @@ mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
 colnames(alltask)<-mylabels
 head(alltask)
 ```
-##Code for identifying exclusions and substituting NA
-This also has commented out option for substituting other score on same task 
+##Code for identifying exclusions and substituting NA - original criteria as in Prereg document.
+This also has commented out option for substituting other score on same task (i.e. sess 2 if sess 1 is excluded and vice versa)
 ```{r exclusions}
+excludemethod <- 2 #set this to 1 to revert to original method
 # Exclude data with < 12 trials and outliers identified by H&I method
+if (excludemethod == 1){
 exclusions  <- read.csv(paste0(readdir,'LI_mean_exclusions.csv'))
 exclusions <- cbind(exclusions[1:nsub, 4:9], exclusions[(nsub+1):(nsub*2), 4:9]) # Reshape into 12 columns
 # for (t in 1:6){
@@ -98,6 +117,16 @@ exclusions <- cbind(exclusions[1:nsub, 4:9], exclusions[(nsub+1):(nsub*2), 4:9])
 
 for (t in 1:12){
    alltask[which(exclusions[ , t] > 0), t] = NA # Change excluded values to NA
+}
+}
+```
+##Code for identifying exclusions and substituting NA based on SE rather than LI 
+```{r excludeSE}
+if (excludemethod == 2){#use new se criteria for exclusion 
+  exclusions  <- read.csv(paste0(readdir,'LI_se_exclusions.csv'))
+  for (t in 1:12){
+    alltask[which(exclusions[ , (t+1)] > 0), t] = NA # Change excluded values to NA
+  }
 }
 ```
 ##Show means etc for tasks with time1 and time2 adjacent
