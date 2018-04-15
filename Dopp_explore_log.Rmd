@@ -1,16 +1,18 @@
 ---
 title: "Logbook for exploration of Doppler methods"
 author: "Dorothy Bishop"
-date: "14/04/2018"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+
 ```
 
-## Background
 
+`r Sys.time()`
+## Background
 We attempted to do the SEM analysis that was preregistered on OSF:
 https://osf.io/9uaw4/register/565fb3678c5e4a66b5582f67
 but encountered problems with model fit. 
@@ -35,13 +37,15 @@ Various strategies considered for improving fit:
 
 * 4. I have added heatmaps to the script so we can visualise the difference between observed and expected covariances, to get some insight into reasons for poor model fit. This revealed that a major issue was that the variances for the same task could be quite different from Time 1 to Time 2. Because the model had them set as equal, the fit was poor. It can be improved by allowing variances for the same task to be different at Time 1 and Time 2. See below!
 
-*5. Looking at the heatmaps also made me question the way we had specified outlier exclusion. The ones we need to exclude are those with __unreliable__ laterality index, not those with _unusual_ LI. We don't want to lose someone just because they are atypically lateralised. So the sensible criterion to use should be based on the reliability of the LI, and for that we should be looking at those with high standard error of the LI (which indicates trial by trial variation). I have taken the data from the original Results_Session1 and 2 data and made script called A2_outlier_se.R which identifies outliers on this basis and writes result to LI_se_exclusions.csv. This identifies 6 cases as outliers. NB with this method you don't need to exclude on the basis of N trials: the whole rationale for excluding low N was that the LI estimate would be unreliable, but if someone gets a low SE with a small N trials, we can keep them with this approach. I tried re-running the model with this new rule for exclusions and the fit does improve.
+* 5. Looking at the heatmaps also made me question the way we had specified outlier exclusion. The ones we need to exclude are those with __unreliable__ laterality index, not those with __unusual__ LI. We don't want to lose someone just because they are atypically lateralised. So the sensible criterion to use should be based on the reliability of the LI, and for that we should be looking at those with high standard error of the LI (which indicates trial by trial variation). 
 
-* 6. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors.
+I have taken the data from the original Results_Session1 and 2 data and made script called A2_outlier_se.R which identifies outliers on this basis and writes result to LI_se_exclusions.csv. This identifies 6 datapoints as outliers. NB with this method you don't need to exclude on the basis of N trials: the whole rationale for excluding low N was that the LI estimate would be unreliable, but if someone gets a low SE with a small N trials, we can keep them with this approach. I tried re-running the model with this new rule for exclusions and the fit does improve.
 
-Overall, though, I think we can proceed with the solution of allowing variances to vary across sessions and identifying outlier by high SE. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
+* 6. Previously, when using the original LIs, I was concerned that the best-fitting bifactor model seemed very labile, and could change depending on which subjects were included/excluded. I did not look at that systematically. With the LIs based on mean in POI, I yesterday tried re-running using a 'drop one' approach, i.e. running with 29 subjects, dropping a new one on each run. The model seemed reasonably stable: 26 runs gave solution with tasks A-E loading on factor 1, and task F on factor 2. Just 2 runs gave v different solution, and 2 gave solution as before, but with E loading on both factors. This was using the original bifactor model.
 
-Yet another thought: this made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy.
+Overall, I think we could proceed with the solution of allowing variances to vary across sessions and identifying outlier by high SE. I have not checked the stability of the solution with the 'drop one' approach, and I think we should do that. I also think it would be good to cross-check this using Lavaan (which I don't really understand!). 
+
+Yet another thought: this made me wonder if data on some variables is just too noisy, so raises question of whether we can go back to raw data and do further cleaning. The standard error of the LI estimate is an index of how reliable the individual measure is. Question is whether we could use something like trimmed means when deriving the mean LI in the POI to reduce the noise. It would be useful to know if that would solve the fit issues without needing to unconstrain variances, so worth a try I think as it might alter how we proceed with LI calculation in future. The high between-subject variance for SentGen2 is especially noteworthy. This could just mean that SentGen is a really good test for picking up individual differences, but it is odd that it shifts from time 1 to time 2 in this way  -and that shift has a big impact on model fit.
 
 ##What does it all mean?
 I think it's interesting! The models for means and covariances need to be put together to make sense of this.
@@ -121,6 +125,7 @@ for (t in 1:12){
 }
 ```
 ##Code for identifying exclusions and substituting NA based on SE rather than LI 
+Please see justification in Background section. This differs from what we preregistered but I think we can defend it as making more sense.
 ```{r excludeSE}
 if (excludemethod == 2){#use new se criteria for exclusion 
   exclusions  <- read.csv(paste0(readdir,'LI_se_exclusions.csv'))
