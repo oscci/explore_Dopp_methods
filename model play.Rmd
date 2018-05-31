@@ -121,5 +121,6 @@ If within-task correlation is higher than between-task, that suggests there are 
 
 Question is what do factor scores look like for the two extracted factors?
 Can we plot these?
+Need to look at A2_5_SEM.R for this.
 
 
