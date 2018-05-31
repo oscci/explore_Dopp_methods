@@ -1,0 +1,125 @@
+---
+title: "lat_models_play"
+author: "DVM Bishop"
+date: "31/05/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(Hmisc)
+```
+
+# Background
+
+##Laterality at the level of the population and the individual
+In considering whether or not language laterality is unitary, we need to distinguish between predictions about task-dependent aspects of language laterality in the population as a whole, as opposed to individual differences in lateralisation. Most theories of language lateralisation have focused on how language functions are lateralised in the brain in typical humans, without regard to individual differences. For instance, Hickok and Poeppel's (2007) dual route model of speech processing contrasts a dorsal stream from superior temporal to premotor cortices via the arcuate fasciculus, which is associated with sensorimotor integration of auditory speech sounds and articulatory motor actions; and a ventral stream from temporal cortex to anterior inferior frontal gyrus, which is involved in access to conceptual memory and identification of auditory objects (Rauschecker, 2018). Hickok and Poeppel proposed that the dorsal stream is left lateralized, whereas the ventral stream is bilateral.  This kind of theory makes predictions about task-related differences that can be assessed by comparing mean laterality indices in a sample. Thus, the prediction from the dual route model is that mean laterality indices for tasks involving the dorsal stream will show left-lateralisation, whereas indices from tasks primarily involving the ventral stream will not.  In practice, our ability to test this prediction depends on having reliable tasks that load predominantly on one stream or the other.
+
+The picture is complicated, however, by individual differences; as well as the typical pattern of language laterality, some individuals show the reverse pattern - right-hemisphere language. A subset of people with bilateral language has also been described, but this is not well-specified. These could be people who are strongly lateralized, but with different direction of lateralization for different tasks, or people who engage both hemispheres equally during language tasks. It may in practice be difficult to distinguish the latter situation from poor test reliability, where noisy measurement masks genuine lateralization.  To gain insights into individual differences, we need to move away from a focus on mean laterality indices, to look at covariances between indices on different measures. Laterality indices across tasks may be positively correlated even if overall left-lateralisation is weak or absent, if the population consists of a mixture of those who are reliably left-lateralised and those who are right-lateralised. At the level of population means, this would look like bilateral function, but the mean would misrepresent the true situation.
+
+Viewed this way, it looks as if we could model our data with a classic regression approach, where an observed score is determined by 3 terms:
+
+a - an intercept that corresponds to a task-specific population bias
+
+b - a term corresponding to stable individual differences
+
+e - an error term
+
+And I guess one question then is whether there is evidence of a x b, which would be significant if there were people whose personal laterality varied from task to task
+
+Need to look at correlations to see what it looks like; vary the weighting of task and individual terms
+
+This simulation allows for task-specific bias between tasks, and an individual-specific bias that is constant.
+
+Without either bias, data is random: no reliability and no laterality
+
+With only task bias, one sees task effects but no reliability
+
+With only subject bias, no task effect but reliable
+
+However, with this simulation the reliabilities are similar to cross-task correlations.
+This is because the subject term is the same for all! The different means don't affect the correlation.
+
+
+
+
+
+```{r modelsim, echo=FALSE}
+nsub <- 200
+errwt <- 1 #weighting for error term
+for (taskwt in 0:1){
+  for (indwt in 0:1){
+print(paste('Task weighting is ',taskwt))
+print (paste('Subject weighting is ', indwt))
+
+taskeffect <-c(2,1.6,1.4,1.2,1,0) #simulate 6 tasks
+indeffect <- rnorm(nsub) #simulate nsub people
+thisrow <- 0
+myscore <- data.frame(matrix(NA,nrow=length(indeffect),ncol=2*length(taskeffect)+1))
+colnames(myscore) <- c('ID','A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
+  for (j in 1: length(indeffect)){
+    thisrow<-thisrow+1
+    thiscol <- 1
+    myscore[thisrow,thiscol]<-thisrow
+    for (i in 1:length(taskeffect)){
+    for (k in 1:2){ #2 test occasions
+      thiscol<-thiscol+1
+    # The next line simulates situation with task x person interaction
+    #  myscore[thisrow,thiscol]<-taskeffect[i]+indeffect[j]+taskeffect[i]*indeffect[j]+rnorm(1)
+     #  The next line simulates situation without task x person interaction
+       myscore[thisrow,thiscol]<-taskwt*taskeffect[i]+indwt*indeffect[j]+errwt*rnorm(1)
+      
+      }
+  }
+}
+#in terms of correlations and means, data look v like real data!
+mymeans <- round(colMeans(myscore[,2:ncol(myscore)]),3)
+print('Task means')
+print(mymeans)
+
+mycorr <-rcorr(as.matrix(myscore[,2:ncol(myscore)]))
+myreliab <- c(mycorr$r[1,2],mycorr$r[3,4],mycorr$r[5,6],mycorr$r[7,8],mycorr$r[9,10],mycorr$r[11,12])
+print('reliabilities')
+print(myreliab)
+print('Median reliability')
+print(median(myreliab))
+mycrosstask <- c (mycorr$r[1,3],mycorr$r[1,5],mycorr$r[1,7],mycorr$r[1,9],mycorr$r[1,11],
+                       mycorr$r[3,5],mycorr$r[3,7],mycorr$r[3,9],mycorr$r[3,11],
+                      mycorr$r[5,7],mycorr$r[5,9],mycorr$r[5,11],
+                      mycorr$r[7,9],mycorr$r[7,11],
+                      mycorr$r[9,11])
+print('Cross-task correlations')
+print(mycrosstask)
+print('Median cross-task correlation')
+print(median(mycrosstask))
+  }
+}
+```
+
+What about real data?!
+Are the correlations higher for same task vs cross-task?
+
+Reliability = within-task correlation is:
+`r median(c(.05,.57,.71,.7,.53,.72))`
+
+Between-task correlation (session 1) is:
+`r median(c(.24,.38,.52,.47,.18,.51,.57,.65,.49,.53,.54,.3,.51,.33,.62))`
+
+
+Between-task correlation (session 2) is:
+`r median(c(.23,.2,.25,.08,.21,.71,.54,.65,.39,.76,.65,.37,.5,.33,.45))`
+
+Cross-task, cross-session 1 to 2 is:
+`r median(c(.42,.31,.24,.47,.35,.65,.56,.27,.44,.62,.56,.31,.55,.43,.62))`
+
+Cross-task, cross-session 2 to 1 is:
+`r median(c(.24,.21,.28,.12,.2,.63,.55,.68,.41,.55,.60,.31,.5,.2,.2))`
+
+It looks as if in general the correlations are higher for within-task, but rather marginal, given the error of measurement. Some of the cross-task correlations are above .6
+
+If within-task correlation is higher than between-task, that suggests there are different subject effects for different tasks. Task A is problematic because low within-task anyhow - at Time 1 the correlation is actually higher with other tasks than with same task!
+
+Question is what do factor scores look like for the two extracted factors?
+Can we plot these?
+
+
