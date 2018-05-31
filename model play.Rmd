@@ -123,4 +123,12 @@ Question is what do factor scores look like for the two extracted factors?
 Can we plot these?
 Need to look at A2_5_SEM.R for this.
 
+Have appended factor scores and plots to A2_5_SEM.R
+
+Shows good reliability for first factor (around .85), less so for 2nd factor.
+Also factors are positively correlated.
+A factor based on mean for all tests is also v reliable - mean similar to just factor 1.
+Does question whether bifactor is really much better!
+
+
 
