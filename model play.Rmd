@@ -123,12 +123,119 @@ Question is what do factor scores look like for the two extracted factors?
 Can we plot these?
 Need to look at A2_5_SEM.R for this.
 
-Have appended factor scores and plots to A2_5_SEM.R
+Have appended factor scores and plots to A2_5_SEM.R: redone here
 
-Shows good reliability for first factor (around .85), less so for 2nd factor.
-Also factors are positively correlated.
+```{r facscores}
+require(Hmisc)
+# Use significant paths from SEM to compute factors
+lidat<-read.csv('LI_data2.csv')
+alltask<-cbind(lidat[1:30,3:8],lidat[31:60,3:8])
+colnames(alltask)<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
+            'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
+
+
+alltask$FacA.1 <- alltask$ListGen1+
+                  2.07*alltask$PhonDec1+
+                  1.95*alltask$SemDec1+
+                  2.86*alltask$SentGen1+
+                  2.07*alltask$SentComp1
+alltask$FacA.2 <- alltask$ListGen2+
+  2.07*alltask$PhonDec2+
+  1.95*alltask$SemDec2+
+  2.86*alltask$SentGen2+
+  2.07*alltask$SentComp2
+
+alltask$FacB.1 <-.73*alltask$SentComp1+.82*alltask$Jabber1
+alltask$FacB.2 <-.73*alltask$SentComp2+.82*alltask$Jabber2
+par(mfrow=c(2,2))
+plot(alltask$FacA.1,alltask$FacA.2)
+plot(alltask$FacB.1,alltask$FacB.2)
+plot(alltask$FacA.1,alltask$FacB.1)
+plot(alltask$FacA.2,alltask$FacB.2)
+
+myncol<-ncol(alltask)
+rcorr(as.matrix(alltask[,(myncol-3):myncol]))
+
+alltask$meansess1 <- rowMeans(alltask[,1:6])
+alltask$meansess2 <- rowMeans(alltask[,7:12])
+cor(alltask$meansess1,alltask$meansess2)
+plot(alltask$meansess1,alltask$meansess2)
+```
+
+
+Shows good reliability for first factor (r=.86), less so for 2nd factor (r = .64).
+Also factors are positively correlated - around .71.
 A factor based on mean for all tests is also v reliable - mean similar to just factor 1.
 Does question whether bifactor is really much better!
 
+This approach also suggests linear mixed models would make sense: will try this for converging evidence.
+
+```{R lmmapproach}
+require(lme4)
+library(car)
+lidat<-read.csv('LI_data2.csv')
+myrow<-nrow(lidat)
+
+#reshape into long form
+longdat <- rbind(lidat[,1:2],lidat[,1:2],lidat[,1:2],lidat[,1:2],lidat[,1:2],lidat[,1:2])
+longdat$task <-c(rep('A',myrow),rep('B',myrow),rep('C',myrow),rep('D',myrow),rep('E',myrow),rep('F',myrow))
+longdat$li <-c(lidat$A,lidat$B,lidat$C,lidat$D,lidat$E,lidat$F)
+longdat$task<-as.factor(longdat$task)
+lmfull <- lmer(li ~ Session+ task + (1 +task|ID) , data = longdat,
+    REML = FALSE) #model where as well as task effect, there is random effect of ID which varies by task
+summary(lmfull)
+lmm <- lmer(li ~ Session+ task + (1 |ID) , data = longdat,
+    REML = FALSE)#model where as well as task effect, there is random effect of ID 
+summary(lmm)
+lm.a <- lm(li ~ Session+ task , data = longdat) #model with no random effect of ID
+summary(lm.a)
+print('\nCompare the full model with model without task-varying random effect')
+anova(lmfull,lmm)
+print('\nCompare the model with constant random effect vs no random effect')
+anova(lmm,lm.a)
+
+```
+This shows that model with random effect of ID varying by task is better fit than one with constant random effect.
+Model with no random effect is poor fit.
+
+Our factor model suggests optimal may be to treat tasks A-D as one block and E-F as another.
+Rerun model, this time using 'taskblock' rather than task.
+
+```{r blockedtask}
+longdat$taskblock<-1
+w <- c(which(longdat$task=='E'),which(longdat$task=='F'))
+longdat$taskblock[w]<-2
+longdat$taskblock<-as.factor(longdat$taskblock)
+lmbyblock <- lmer(li ~ Session+ task + (1 +taskblock|ID) , data = longdat,
+    REML = FALSE) #model where as well as task effect, there is random effect of ID which varies by taskblock
+summary(lmbyblock)
+lmfull <- lmer(li ~ Session+ task + (1 +task|ID) , data = longdat,
+    REML = FALSE)#model where as well as task effect, there is random effect of ID which varies by task
+summary(lmfull)
+print('\nCompare the model with random effect by block and model with random effect by task')
+anova(lmfull,lmbyblock)
 
 
+```
+
+BIC is lower for model with blocked tasks than separate tasks.
+What about if task F is only one in block 2?
+
+```{r blockFsep}
+longdat$taskblock<-1
+w <- which(longdat$task=='F')
+longdat$taskblock[w]<-2
+longdat$taskblock<-as.factor(longdat$taskblock)
+lmbyblock <- lmer(li ~ Session+ task + (1 +taskblock|ID) , data = longdat,
+    REML = FALSE) #model where as well as task effect, there is random effect of ID which varies by taskblock
+summary(lmbyblock)
+lmfull <- lmer(li ~ Session+ task + (1 +task|ID) , data = longdat,
+    REML = FALSE)#model where as well as task effect, there is random effect of ID which varies by task
+summary(lmfull)
+print('\nCompare the model with random effect by block and model with random effect by task')
+anova(lmfull,lmbyblock)
+
+
+```
+
+Picture is similar.
