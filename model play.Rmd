@@ -117,7 +117,7 @@ mypairs<-matrix(c(1,2,1,3,3,4,2,4),nrow=4,byrow=TRUE)
       a<-mypairs[i,1]+kbase
       b<-mypairs[i,2]+kbase
 
-    plot(fordemo[,a],fordemo[,b],xlab=colnames(fordemo)[a],ylab=colnames(fordemo)[b],xlim=c(-3,4),ylim=c(-3,4))
+    plot(fordemo[,a],fordemo[,b],xlab=colnames(fordemo)[a],ylab=colnames(fordemo)[b],xlim=c(-3,5),ylim=c(-3,5),cex=.75)
    abline(h=mean(fordemo[,a]))
    abline(v=mean(fordemo[,b]))
    rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),3))
@@ -132,12 +132,14 @@ dev.off()
 ```{r demoplotshort}
  pdf(paste0("SimModels.pdf"),width=5,height=7)
 par(mfrow=c(5,2))
+par(mar=c(3.5,4,1,1)) #bottom , left, top , right
 for (k in 1:5){
  
     kbase<-6*(k-1) #NB there are 6 cols (3 vars) but we only plot 2 vars, A and E
 
 
-#for the interaction condition, create a column for E variable in different order
+#for the interaction condition, create a column for E variables in different order
+    #This means both variables still reliable, but they don't intercorrelate
 fordemo$A1.5<-fordemo$A1.4
 fordemo$A2.5<-fordemo$A2.4
 myrank<-rank(fordemo$E1.4)
@@ -147,11 +149,15 @@ mypairs<-matrix(c(1,2,1,3),nrow=2,byrow=TRUE)
   for (i in 1:2){
       a<-mypairs[i,1]+kbase
       b<-mypairs[i,2]+kbase
-
-    plot(fordemo[,a],fordemo[,b],xlab=colnames(fordemo)[a],ylab=colnames(fordemo)[b],xlim=c(-3,4),ylim=c(-3,4))
+myxlab<-'Task A.1'
+myylab<-'Task A.2'
+if(i==2){myylab<-'Task B.1'}
+    plot(fordemo[,a],fordemo[,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,cex=.7,xlab="",ylab="")
+    title(ylab=myylab,line=2)
+       title(xlab=myxlab,line=2)
    abline(h=mean(fordemo[,a]))
    abline(v=mean(fordemo[,b]))
-   rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),3))
+   rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),2))
    text(-2,3.5,rbit)
   }
 
