@@ -146,10 +146,14 @@ So we need a nice figure showing a sample within-task and between-task correlati
 
 ```{r demoplotshort}
  pdf(paste0("SimModels.pdf"),width=5,height=7)
-par(mfrow=c(5,2))
-par(mar=c(3.5,4,1,1)) #bottom , left, top , right
+par(mfrow=c(4,2)) 
+#par(mar=c(3.5,4,1,1)) #bottom , left, top , right
+#see: https://stackoverflow.com/questions/19422625/mtext-y-axis-label-that-covers-a-two-tile-plot
+for (k in 1:5){ #cycle through each model: one per row
+  par(mar = c(3,3,0,0)) # regular margin: use outer margin below for overarching legends etc
 
-for (k in 1:5){
+  par(oma=c(3.5, 4, 2, 1)) #outer margin specified for each row - but this then starts new page for each row
+  #But if oma is specified before loop, then all titles written on top of each other
  if(k != 2){ #we don't need model 2 - this is subj effect and no task effect
  
     kbase<-6*(k-1) #NB there are 6 cols (3 vars) but we only plot 2 vars, A and E
@@ -166,27 +170,34 @@ mypairs<-matrix(c(1,2,1,3),nrow=2,byrow=TRUE)
   for (i in 1:2){
       a<-mypairs[i,1]+kbase
       b<-mypairs[i,2]+kbase
-myxlab<-'Task A.1'
-myylab<-'Task A.2'
-if(i==2){myylab<-'Task B.1'}
-    plot(fordemo[1:150,a],fordemo[1:150,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,cex.axis=.7,xlab="",ylab="")
+myxlab<-'LI Task A(1)'
+myylab<-'LI Task A(2)'
+if(i==2){myylab<-'Task B(1)'}
+    plot(fordemo[1:150,a],fordemo[1:150,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,cex.axis=.7,xlab=myxlab,ylab=myylab)
     #for subscript labels see https://stackoverflow.com/questions/10156417/subscripts-in-plots-in-r
     #These commands also ensure label close to axis with line =2 command
     if (k==1){
-    title(xlab=expression('LI'['ij']*' = a + e'['ij']),line=2)}
+    title(expression('LI'['ij']*' = a + e'['ij']),outer=TRUE)
+     }
         if (k==3){
-    title(xlab=expression('LI'['ij']*' = a + t'['i']*' + e'['ij']),line=2)}
+    title(expression('LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE)}
             if (k==4){
-    title(xlab=expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),line=2)}
+    title(expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE)}
                if (k==5){
-    title(xlab=expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),line=2)}
+    title(expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE)}
 
-   # title(ylab=myylab,line=2)
-      # title(xlab=myxlab,line=2)
-   abline(h=mean(fordemo[,a]),lty=2)
-   abline(v=mean(fordemo[,b]),lty=2)
+    title(ylab=myylab,line=2,outer=FALSE)
+       title(xlab=myxlab,line=2)
+    #previously used abline, but lines extend too far: segments allows control of start/end
+  segments(y0=-3,y1=4,x0=mean(fordemo[,b]),x1=mean(fordemo[,b]),lty=2,col='red')
+   segments(x0=-3,x1=4,y0=mean(fordemo[,b]),y1=mean(fordemo[,b]),lty=2,col='red')
+   segments(y0=-3,y1=4,x0=0,x1=0,col='grey')
+   segments(x0=-3,x1=4,y0=0,y1=0,col='grey')
+
    rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),1))
-   text(-2,3.5,rbit)
+   prebit<-'Test-retest \n'
+   if(i==2){prebit <- 'Cross-task \n'}
+   text(-3,3.5,paste(prebit,rbit),pos=4) #pos=4 specifies left-justify
   }
 
  }
