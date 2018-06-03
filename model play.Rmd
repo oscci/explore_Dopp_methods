@@ -192,8 +192,9 @@ if(i==2){myylab<-'LI Task B(1)'}
     title(ylab=myylab,line=2,cex.lab=.8)
     title(xlab=myxlab,line=2,cex.lab=.8)
     #previously used abline, but lines extend too far: segments allows control of start/end
+    #use to illustrate means for different tasks
   segments(y0=-3,y1=4,x0=mean(fordemo[,b]),x1=mean(fordemo[,b]),lty=2,col='red')
-   segments(x0=-3,x1=4,y0=mean(fordemo[,b]),y1=mean(fordemo[,b]),lty=2,col='red')
+   segments(x0=-3,x1=4,y0=mean(fordemo[,a]),y1=mean(fordemo[,a]),lty=2,col='red')
    segments(y0=-3,y1=4,x0=0,x1=0,col='grey')
    segments(x0=-3,x1=4,y0=0,y1=0,col='grey')
 
