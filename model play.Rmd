@@ -145,7 +145,7 @@ So we need a nice figure showing a sample within-task and between-task correlati
 
 
 ```{r demoplotshort}
- pdf(paste0("SimModels.pdf"),width=5,height=8)
+ pdf(paste0("SimModels.pdf"),width=7,height=10)
 par(mfrow=c(4,2))  #4 rows (1 per model) and 2 cols (for test-retest and cross-task)
 #par(mar=c(3.5,4,1,1)) #bottom , left, top , right
 #see: https://stackoverflow.com/questions/19422625/mtext-y-axis-label-that-covers-a-two-tile-plot
@@ -181,11 +181,11 @@ if(i==2){myylab<-'LI Task B(1)'}
     title(expression('1. Population bias: LI'['ij']*' = a + e'['ij']),outer=TRUE,line=-.5)
      }
         if (k==3){
-    title(expression('2. Task effect: LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE,line=-13.5)}
+    title(expression('2. Task effect: LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE,line=-17.5)}
             if (k==4){
-    title(expression('3. Person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE,line=-27)}
+    title(expression('3. Person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE,line=-35)}
                if (k==5){
-    title(expression('4. Task x person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE,line=-41)}
+    title(expression('4. Task x person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE,line=-53)}
 
     #   #These commands also ensure label close to axis with line =2 command
  
