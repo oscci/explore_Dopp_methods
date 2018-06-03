@@ -145,15 +145,16 @@ So we need a nice figure showing a sample within-task and between-task correlati
 
 
 ```{r demoplotshort}
- pdf(paste0("SimModels.pdf"),width=5,height=7)
-par(mfrow=c(4,2)) 
+ pdf(paste0("SimModels.pdf"),width=5,height=8)
+par(mfrow=c(4,2))  #4 rows (1 per model) and 2 cols (for test-retest and cross-task)
 #par(mar=c(3.5,4,1,1)) #bottom , left, top , right
 #see: https://stackoverflow.com/questions/19422625/mtext-y-axis-label-that-covers-a-two-tile-plot
-for (k in 1:5){ #cycle through each model: one per row
-  par(mar = c(3,3,0,0)) # regular margin: use outer margin below for overarching legends etc
-
   par(oma=c(3.5, 4, 2, 1)) #outer margin specified for each row - but this then starts new page for each row
   #But if oma is specified before loop, then all titles written on top of each other
+
+for (k in 1:5){ #cycle through each model: one per row
+  par(mar = c(5,3,1,0)) # regular margin: use outer margin below for overarching legends etc
+#bottom , left, top , right
  if(k != 2){ #we don't need model 2 - this is subj effect and no task effect
  
     kbase<-6*(k-1) #NB there are 6 cols (3 vars) but we only plot 2 vars, A and E
@@ -172,22 +173,24 @@ mypairs<-matrix(c(1,2,1,3),nrow=2,byrow=TRUE)
       b<-mypairs[i,2]+kbase
 myxlab<-'LI Task A(1)'
 myylab<-'LI Task A(2)'
-if(i==2){myylab<-'Task B(1)'}
-    plot(fordemo[1:150,a],fordemo[1:150,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,cex.axis=.7,xlab=myxlab,ylab=myylab)
+if(i==2){myylab<-'LI Task B(1)'}
+    plot(fordemo[1:150,a],fordemo[1:150,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,xlab='',ylab='')
     #for subscript labels see https://stackoverflow.com/questions/10156417/subscripts-in-plots-in-r
-    #These commands also ensure label close to axis with line =2 command
+    #the line bit of command moves title down if negative
     if (k==1){
-    title(expression('LI'['ij']*' = a + e'['ij']),outer=TRUE)
+    title(expression('1. Population bias: LI'['ij']*' = a + e'['ij']),outer=TRUE,line=-.5)
      }
         if (k==3){
-    title(expression('LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE)}
+    title(expression('2. Task effect: LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE,line=-13.5)}
             if (k==4){
-    title(expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE)}
+    title(expression('3. Person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE,line=-27)}
                if (k==5){
-    title(expression('LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE)}
+    title(expression('4. Task x person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE,line=-41)}
 
-    title(ylab=myylab,line=2,outer=FALSE)
-       title(xlab=myxlab,line=2)
+    #   #These commands also ensure label close to axis with line =2 command
+ 
+    title(ylab=myylab,line=2,cex.lab=.8)
+    title(xlab=myxlab,line=2,cex.lab=.8)
     #previously used abline, but lines extend too far: segments allows control of start/end
   segments(y0=-3,y1=4,x0=mean(fordemo[,b]),x1=mean(fordemo[,b]),lty=2,col='red')
    segments(x0=-3,x1=4,y0=mean(fordemo[,b]),y1=mean(fordemo[,b]),lty=2,col='red')
