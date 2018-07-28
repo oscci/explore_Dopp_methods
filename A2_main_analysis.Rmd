@@ -1,11 +1,12 @@
 ---
 title: "Analysis for A2 writeup"
 author: "Dorothy Bishop/ Zoe Woodhead / Paul Thompson"
-date: "27 Jul 2018"
+date: "28 Jul 2018"
+always_allow_html: yes
 output:
-  html_document: default
-  pdf_document: default
   word_document: default
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -26,7 +27,7 @@ RMSEA is absolute index of (badness of) Model fit: aim for below .08.
 This value decreases with more DF (greater parsimony) or larger sample size.
  
 Comparative fit index (CFI) measures relative improvement in fit of Model over baseline Model. 
-Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CDI > .95 (see Kline p 208)
+Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CFI > .95 (see Kline p 208)
 
 ##Chunks of code for setting packages and reading in data 
 from SEM2_maxLikelihood_realdata.R
@@ -309,7 +310,7 @@ dev.off()
 ![Heatmap](heatmap.png)
 ##Structural equation Models: 
 
-Start with Models of means
+
 
 
 ```{r dropone}
@@ -325,7 +326,7 @@ thisdrop <- 0 #specify a number for participant to be dropped (1 to 30)
 ```
 ###Free Means and Vars Model 
 (from fig 4 in prereg document)
-
+![Free Means and Vars Model](model1.png)
 This acts as baseline: it just Models means and variance: no relation between variables, 
 and no consistency in LI over time.
 
@@ -358,8 +359,8 @@ mychi<-round(thissummary$Chi,1)
 mydfdiff<-thissummary$ChiDoF
 myp<-round(thissummary$p,3)
 if (myp<.001){myp<-'<.001'}
-myBIC<- round(thissummary$BIC.Mx,3)
-myCFI<-round(thissummary$CFI,1)
+myBIC<- round(thissummary$BIC.Mx,1)
+myCFI<-round(thissummary$CFI,3)
 myRMSEA<-round(thissummary$RMSEA,3)
 
 thisrow<-nrow(bigsummary)
@@ -370,6 +371,7 @@ return(bigsummary)
 }
 ```
 
+Start with Models of means
 
 ```{r freemeans_Model1}
 # residual variances
@@ -402,6 +404,9 @@ N.B. The summary output shows estimates of variances (e) and means (M). Note tha
 
 ## Model 2: Tweak free means Model to check stability of means
  Means and variances set to be the same for time1 and time2 for each measure. 
+ N.B. for this model and all subsequent means models, there is a warning about possible misspecification of the model. I think this is just because covariances are omitted from the model, but are included in the reference model. I think this need not be a problem, as we are anticipating v poor model fit, precisely because we ignore covariances, when the correlation matrix makes it clear that we need to model them. The models here, though, are intended just to compare between different theories about means, and to compare models that all suffer from this same deficiency. 
+ 
+ ![Task Effect model](model2.png)
  This is achieved by giving the path the same name, e.g. meanA for A1 and A2
  N.B. This is not same as test-retest reliability: as covariances not considered.
  We're just testing if the mean values are similar time 1 and time 2, not whether same people are high or low.
@@ -444,6 +449,7 @@ pmessage
 
 ```
 ## Model where all tests equivalent: Model 3
+ ![All tasks same](model3.png)
 More extreme version of stability Model, where all means and all vars are the same.
 This tests (rather implausible!) hypothesis that all measures are similarly lateralised. It is equivalent to the 'population bias' Model.
 We expect fit to worsen relative to stability Model - assuming measures differ in extent of laterality.
@@ -485,6 +491,8 @@ pmessage
 bigsummary
 ```
 ##Test dorsal/ventral/mixed Model (Model 4)
+ ![Dorsal/ventral](model4.png)
+ 
 This proposes pattern of means different for taskAB, C and DEF (Model 2a in prereg document).
 Model predicts strength of laterality will be: AB > DEF > C.
 We test this by equating means and variances for AB and DEF.
@@ -533,6 +541,7 @@ my4
 ```
 ##Lexical retrieval Model
 Hypothesis A.2 Strength of lateralization depends on the extent to which tasks require lexical retrieval (more lexical retrieval = stronger left lateralization).
+ ![Lexical retrieval](model5.png)
 
 Operationalised by setting means equal for tasks BD, ACF and E (Model 5)
 
@@ -553,18 +562,18 @@ myModel5 <- mxModel("Model5", type="RAM",
                      dataRaw, resVars,  means)
 
 Model5Fit <- mxRun(myModel5) #The mxRun command evaluates the Model.
-summary.Model4<-summary(Model4Fit, refModels=mxRefModels(Model4Fit, run = TRUE)) 
+summary.Model5<-summary(Model5Fit, refModels=mxRefModels(Model5Fit, run = TRUE)) 
 
 #to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-test.2.4<-mxCompare(Model2Fit,Model4Fit)
-summary.Model4$Chi<-test.2.4$diffLL[2]
-summary.Model4$ChiDoF<-test.2.4$diffdf[2]
-summary.Model4$p<-test.2.4$p[2]
+test.2.5<-mxCompare(Model2Fit,Model5Fit)
+summary.Model5$Chi<-test.2.5$diffLL[2]
+summary.Model5$ChiDoF<-test.2.5$diffdf[2]
+summary.Model5$p<-test.2.5$p[2]
 mycomp<-'Model 2'
 thiscomment<-'BD>ACF'
 thisrowname<-'5.LexicalRetrieval'
-bigsummary<-addbig(summary.Model4,mycomp,thiscomment,thisrowname) 
+bigsummary<-addbig(summary.Model5,mycomp,thiscomment,thisrowname) 
 
 
 #Add some output showing the mean estimates and testing if they fit the expected pattern
@@ -584,6 +593,7 @@ my5
 
 ##SEM Models including covariances
 Single factor Model (means equalized for T1 and T2).
+ ![Single factor](model6.png)
 If tasks are correlated (as they are) this will give a better fit than the preceding Models, which only looks at means.
 It is necessary to scale the paths from observed variables to latent factor in terms of one of the observed variables. We chose the first variable. NB I have checked that choice does not affect the factor solution.
 
@@ -629,7 +639,7 @@ bigsummary<-addbig(summary.Model6,mycomp,thiscomment,thisrowname)
 
 
 pmessage<-'One factor Model no better than Model with no covariance between measures'
-if(Model6test$p[2]<.05){
+if(test.6.2$p[2]<.05){
   pmessage <- paste0('One factor Model is better fit than Model with no covariance between measures')
 }
 pmessage
@@ -641,6 +651,7 @@ Will a bifactor Model improve this?
 
 ##Bifactor Model
 Here we specify two independent latent factors. Aim is to see whether the tests form two clusters.
+ ![Bifactor](model7.png)
 ```{r bifactor}
 # residual variances
 resVars      <- mxPath( from=mylabels, arrows=2,
@@ -694,7 +705,7 @@ pmessage<-'Bi-factor Model does not improve fit over one factor Model'
 
 if (test.7.6$p[2]<.05){pmessage <- paste0('Bi-factor Model is better fit than one factor Model' )}
 pmessage
-mcomp
+test.7.6
 bigsummary
 #mxCheckIdentification(myModel7, details=TRUE) # check Model identification: all OK
 
@@ -749,7 +760,7 @@ test.8.7<-mxCompare(Model8Fit,Model7Fit)
 summary.Model8$Chi<-test.8.7$diffLL[2]
 summary.Model8$ChiDoF<-test.8.7$diffdf[2]
 summary.Model8$p<-test.8.7$p[2]
-mycomp<-'Model 8'
+mycomp<-'Model 7'
 thiscomment<-'Bifactor, vars differ by session'
 thisrowname<-'8.Task x Person Effect, free vars'
 bigsummary<-addbig(summary.Model8,mycomp,thiscomment,thisrowname) 
@@ -762,7 +773,7 @@ if (test.8.7$p[2]<.05){psummary <-'Bi-factor Modelb gives better fit than one fa
 pmessage
 test.8.7
 bigsummary
-
+write.table(bigsummary, "bigsummary.txt", sep="\t",quote=F) 
 ```
 
 
@@ -776,6 +787,7 @@ covexplore(Model8Fit,'Model 8: obs/exp covariance diffs')
 
 ## Draw simplified path diagram
 Draw diagram of the bi-factor Model 8, with nonsignificant paths omitted.
+The criterion for a non-significant path is currently set to z = 1.65, but it is rather arbitrary, and the picture will look different depending on how stringent you make it.
 N.B. The file for_graphviz is set up in advance and read in and modified according to results. For this part of the script to work you must have the file 'for_graphviz.csv' in your working directory.
 
 Test A is shown in red as this has fixed paths to X1 (1) and X2 (0).
