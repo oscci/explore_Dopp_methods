@@ -51,6 +51,8 @@ library("yarrr")
 ```
 ##Code for setting directory flexibly
 ```{r definedir}
+#This not currently used but should be easy to adapt if needed. 
+#recommend just setting working directory to current folder where files reside
 thisuser <-'dorothybishop'
 thisdrive<- '' #may need to set this to 'C:' for PC users
 #readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/project A2/')
@@ -107,17 +109,21 @@ rownames(behavdf)<-c('B','C','E','F')
 write.table(behavdf, "Behavtable.txt", sep="\t",row.names=TRUE,quote=FALSE) #Currently this is table 1
 ```
 ##Code for reading and reshaping LI data
+N.B. Can select to use original LI values based on peak, or LI values from mean in POI.
 ```{r readdata}
 #read in data from sessions 1 and 2, having saved as .csv
 #NB. Need to set working directory to location of data files - or else specify path
-
+usemean <-1 #set to zero if you want to analyse peak-based LI
 data1<-read.csv('Results_Session1.csv')
 data2<-read.csv('Results_Session2.csv')
 
+alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
+             select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
 
-
+if(usemean==1){
 alltaskall <- cbind(select(data1,A1.LI_mean,B1.LI_mean,C1.LI_mean,D1.LI_mean,E1.LI_mean,F1.LI_mean),
              select(data2,A2.LI_mean,B2.LI_mean,C2.LI_mean,D2.LI_mean,E2.LI_mean,F2.LI_mean))
+}
 mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
             'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
 colnames(alltaskall)<-mylabels
@@ -131,9 +137,12 @@ Please see justification in Methods. This differs from what we preregistered but
 
 ```{r excludeSE}
 alltask<-alltaskall #create a new copy where the outliers will be coded as NA
+allse <- cbind(select(data1,A1.se,B1.se,C1.se,D1.se,E1.se,F1.se),
+             select(data2,A2.se,B2.se,C2.se,D2.se,E2.se,F2.se))
+if (usemean==1){
 allse <- cbind(select(data1,A1.mean_se,B1.mean_se,C1.mean_se,D1.mean_se,E1.mean_se,F1.mean_se),
              select(data2,A2.mean_se,B2.mean_se,C2.mean_se,D2.mean_se,E2.mean_se,F2.mean_se))
-
+}
 myse<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
         allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
 
@@ -150,7 +159,7 @@ dropSE<-dropSE+1
 }
 }
 print(paste('Dropped because high SE, N = ',dropSE))
-#picks up subject 5 on PHondec1, and subject 9 on Jabber1
+#if usemean==1, picks up subject 5 on PHondec1, and subject 9 on Jabber1
 
 #Now remove those with fewer than 12 trials in a condition
 dropN<-0 #initialise counter
@@ -175,7 +184,7 @@ for (i in 1:6){
 }
 print(paste('Dropped because < 12 trials, N = ',dropN))  
   
-#Dropped data points are S13 Sentgen2, S14 Listgen2, S26 Sentcomp1 and S30 Sentgen1
+#When usemean==1, dropped data points are S13 Sentgen2, S14 Listgen2, S26 Sentcomp1 and S30 Sentgen1
 ```
 ##Show means etc for tasks with time1 and time2 adjacent
 ```{r stargaze}
@@ -311,19 +320,6 @@ dev.off()
 ##Structural equation Models: 
 
 
-
-
-```{r dropone}
-#This bit of script was used at the start of OpenMx in case we wanted to try 'drop one' approach
-#to test consistency of bifactor solution. It will drop cases specified in thisdrop.
-#Could do this in a loop once we have an optimal approach.
-thisdrop <- 0 #specify a number for participant to be dropped (1 to 30)
-  dataRaw      <- mxData( observed=alltask, type="raw" )
- if(thisdrop>0){
-   dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )}
-  
-
-```
 ###Free Means and Vars Model 
 (from fig 4 in prereg document)
 ![Free Means and Vars Model](model1.png)
@@ -359,6 +355,7 @@ mychi<-round(thissummary$Chi,1)
 mydfdiff<-thissummary$ChiDoF
 myp<-round(thissummary$p,3)
 if (myp<.001){myp<-'<.001'}
+if (myp==1){myp<-NA} #for first model
 myBIC<- round(thissummary$BIC.Mx,1)
 myCFI<-round(thissummary$CFI,3)
 myRMSEA<-round(thissummary$RMSEA,3)
@@ -375,7 +372,7 @@ Start with Models of means
 
 ```{r freemeans_Model1}
 # residual variances
-
+dataRaw      <- mxData( observed=alltask, type="raw" )
 resVars      <- mxPath( from=mylabels, arrows=2,
                         free=TRUE, values=rep(1,12), #estimate error variances; free to vary by test and occasion
                         labels=c("e1","e2","e3","e4","e5","e6","e7","e8","e9","e10","e11","e12") )
@@ -388,10 +385,16 @@ myModel1 <- mxModel("Free means Model", type="RAM",
                     manifestVars=mylabels,
                     dataRaw, resVars,  means)
 Model1Fit <- mxRun(myModel1)
-summary.Model1<-summary(Model1Fit, refModels=mxRefModels(Model1Fit, run = TRUE)) #gives CFI, TLI, RMSEA if refModels specified
+summary.Model1<-summary(Model1Fit, refModels=mxRefModels(Model1Fit, run = TRUE)) #gives CFI, TLI, RMSEA if refModels specified - we won't use these as they aren't meaningful here
 summary.Model1
 #Define labels to add to bigtable
-mycomp<-'Saturated'
+summary.Model1$Chi<- NA
+summary.Model1$ChiDoF<-  NA
+summary.Model1$p<- 1
+summary.Model1$RMSEA<- NA
+summary.Model1$BIC.Mx<- NA
+summary.Model1$CFI<- NA
+mycomp<-'-'
 thiscomment<-'Free means/vars'
 thisrowname<-'1.Independent data'
 bigsummary<-addbig(summary.Model1,mycomp,thiscomment,thisrowname) 
@@ -400,11 +403,11 @@ bigsummary<-addbig(summary.Model1,mycomp,thiscomment,thisrowname)
 
 ```
 
-N.B. The summary output shows estimates of variances (e) and means (M). Note that the variance is particularly high for SentGen2. Suggests we might want to look at this to see if our outlier exclusion has missed noisy cases. Also v low variance for ListGen1
+N.B. The summary output shows estimates of variances (e) and means (M). Note that the variance is particularly high for SentGen2. Also v low variance for ListGen1
 
 ## Model 2: Tweak free means Model to check stability of means
  Means and variances set to be the same for time1 and time2 for each measure. 
- N.B. for this model and all subsequent means models, there is a warning about possible misspecification of the model. I think this is just because covariances are omitted from the model, but are included in the reference model. I think this need not be a problem, as we are anticipating v poor model fit, precisely because we ignore covariances, when the correlation matrix makes it clear that we need to model them. The models here, though, are intended just to compare between different theories about means, and to compare models that all suffer from this same deficiency. 
+ N.B. for this model and all subsequent means models, OpenMx gives a warning about possible misspecification of the model. This is because covariances are omitted from the model, but are included in the reference model. I think this need not be a problem, as we are anticipating v poor model fit, precisely because we ignore covariances, when the correlation matrix makes it clear that we need to model them. The models here, though, are intended just to compare between different theories about means, and to compare models that all suffer from this same deficiency. 
  
  ![Task Effect model](model2.png)
  This is achieved by giving the path the same name, e.g. meanA for A1 and A2
@@ -841,6 +844,19 @@ grViz(dotFilename)
 
 ```
 
+
+
+```{r dropone}
+#This bit of script was used at the start of OpenMx in case we wanted to try 'drop one' approach
+#to test consistency of bifactor solution. It will drop cases specified in thisdrop.
+#Could do this in a loop once we have an optimal approach.
+thisdrop <- 0 #specify a number for participant to be dropped (1 to 30)
+ 
+ if(thisdrop>0){
+   dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )}
+  
+
+```
 ##Session information
 ```{r sessinfo}
 sessionInfo()
