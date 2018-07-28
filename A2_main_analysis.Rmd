@@ -334,6 +334,7 @@ equalising paths or by Modeling covariances.
 
 N.B. I previously described this as a saturated Model, but the fully saturated Model includes covariances
 (which are all zero) and so has more DF. The free means Model can be evaluated against the fully saturated one, using mxRefModels to specify the saturated Model. When that is done, we get rmsea and CFI provided for relative fit.
+
 ```{r setupbigsummary}
 #We'll create a Table, bigsummary, to hold fit stats for different Models
 bigsummary <- data.frame(matrix(NA,nrow=1,ncol=10))
@@ -357,7 +358,7 @@ mychi<-round(thissummary$Chi,1)
 mydfdiff<-thissummary$ChiDoF
 myp<-round(thissummary$p,3)
 if (myp<.001){myp<-'<.001'}
-myBIC<- round(thissummary$BIC.Mx,1)
+myBIC<- round(thissummary$BIC.Mx,3)
 myCFI<-round(thissummary$CFI,1)
 myRMSEA<-round(thissummary$RMSEA,3)
 
@@ -467,10 +468,10 @@ summary.Model3<-summary(Model3Fit, refModels=mxRefModels(Model3Fit, run = TRUE))
 #to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2
 #NB Model with most DF is last; Model 3 has many DF because no task-specific terms
 
-test.3.2<-mxCompare(Model2Fit,Model3Fit)
-summary.Model3$Chi<-test.3.2$diffLL[2]
-summary.Model3$ChiDoF<-test.3.2$diffdf[2]
-summary.Model3$p<-test.3.2$p[2]
+test.2.3<-mxCompare(Model2Fit,Model3Fit)
+summary.Model3$Chi<-test.2.3$diffLL[2]
+summary.Model3$ChiDoF<-test.2.3$diffdf[2]
+summary.Model3$p<-test.2.3$p[2]
 mycomp<-'Model 2'
 thiscomment<-'All means/vars equal'
 thisrowname<-'3. Population bias'
@@ -505,23 +506,21 @@ myModel4 <- mxModel("Model4", type="RAM",
                      dataRaw, resVars,  means)
 
 Model4Fit <- mxRun(myModel4) #The mxRun command evaluates the Model.
-summary4<-summary(Model4Fit)
-summary4
-#NB comparison is between Models 2 and 4
-myLLdiff<-round(summary4$Minus2LogLikelihood-summary2$Minus2LogLikelihood,1) #NB subtracting prior LL before changing it
-mydfdiff<-summary4$degreesOfFreedom-summary2$degreesOfFreedom
-myLL<-round(summary4$Minus2LogLikelihood,1)
-mydf<-summary4$degreesOfFreedom
-myp<-round(pchisq(myLLdiff, df=mydfdiff,lower.tail=FALSE),3)
-myCFI<-NA
-myrmsea<-NA
+summary.Model4<-summary(Model4Fit, refModels=mxRefModels(Model4Fit, run = TRUE)) 
 
-BIC4 <- round(summary4$BIC.Mx,1)
-bigsummary[4,] <-c(myLL,mydf,'2 vs 4',myLLdiff,mydfdiff,myp,BIC4,myCFI,myrmsea,'AB>DEF>C')
-rownames(bigsummary)[4]<-'4.Dorsal/ventral stream'
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+
+test.2.4<-mxCompare(Model2Fit,Model4Fit)
+summary.Model4$Chi<-test.2.4$diffLL[2]
+summary.Model4$ChiDoF<-test.2.4$diffdf[2]
+summary.Model4$p<-test.2.4$p[2]
+mycomp<-'Model 2'
+thiscomment<-'AB>DEF>C'
+thisrowname<-'4.Dorsal/ventral stream'
+bigsummary<-addbig(summary.Model4,mycomp,thiscomment,thisrowname) 
 
 #Add some output showing the mean estimates and testing if they fit the expected pattern
-my4<-summary(Model4Fit)$parameters[4:6,c(1,5,6)]
+my4<-summary(Model4Fit)$parameters[c(4,6,5),c(1,5,6)]
 qmessage<-'Model predicts AB > DEF > C'
 rmessage<-'Not confirmed'
 if((my4[1,2]>my4[3,2])&&(my4[3,2]>my4[2,2])){rmessage<-'Confirmed'}
@@ -530,7 +529,7 @@ pmessage
 qmessage
 rmessage
 my4
-bigsummary
+
 ```
 ##Lexical retrieval Model
 Hypothesis A.2 Strength of lateralization depends on the extent to which tasks require lexical retrieval (more lexical retrieval = stronger left lateralization).
@@ -554,39 +553,31 @@ myModel5 <- mxModel("Model5", type="RAM",
                      dataRaw, resVars,  means)
 
 Model5Fit <- mxRun(myModel5) #The mxRun command evaluates the Model.
-summary5<-summary(Model5Fit)
-summary5
-#NB comparison is between Models 2 and 4
-myLLdiff<-round(summary5$Minus2LogLikelihood-summary2$Minus2LogLikelihood,1) #NB subtracting prior LL before changing it
-mydfdiff<-summary5$degreesOfFreedom-summary2$degreesOfFreedom
-myLL<-round(summary5$Minus2LogLikelihood,1)
-mydf<-summary5$degreesOfFreedom
-myp<-round(pchisq(myLLdiff, df=mydfdiff,lower.tail=FALSE),3)
-myCFI<-NA
-myrmsea<-NA
+summary.Model4<-summary(Model4Fit, refModels=mxRefModels(Model4Fit, run = TRUE)) 
 
-BIC5 <- round(summary5$BIC.Mx,1)
-bigsummary[5,] <-c(myLL,mydf,'2 vs 5',myLLdiff,mydfdiff,myp,BIC5,myCFI,myrmsea,'BD>ACF')
-rownames(bigsummary)[5]<-'5.LexicalRetrieval'
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-#compare with  stability Model (Model2) where task means free to vary
-Model5test<-mxCompare(Model2Fit,Model5Fit)
-Model5test
-pmessage<-'Model5 fits as well as Model with means free to vary any way'
-if(Model5test$p[2]<.05){
-  pmessage <- paste0('Model5 (BIC=',BIC5,') is worse fit than Model with means not constrained (BIC=',BIC2,')')
-   }
+test.2.4<-mxCompare(Model2Fit,Model4Fit)
+summary.Model4$Chi<-test.2.4$diffLL[2]
+summary.Model4$ChiDoF<-test.2.4$diffdf[2]
+summary.Model4$p<-test.2.4$p[2]
+mycomp<-'Model 2'
+thiscomment<-'BD>ACF'
+thisrowname<-'5.LexicalRetrieval'
+bigsummary<-addbig(summary.Model4,mycomp,thiscomment,thisrowname) 
+
+
 #Add some output showing the mean estimates and testing if they fit the expected pattern
-my5<-summary(Model5Fit)$parameters[4:6,c(1,5,6)] #pull out just the rows/cols of interest
+my5<-summary(Model5Fit)$parameters[c(5,4,6),c(1,5,6)] #pull out just the rows/cols of interest
 qmessage<-'Model predicts BD > ACF'
 rmessage<-'Not confirmed'
-if(my5[2,2]>my5[1,2]){rmessage<-'Confirmed'}
-Model5test
+if(my5[1,2]>my5[2,2]){rmessage<-'Confirmed'}
+
 pmessage
 qmessage
 rmessage
 my5
-bigsummary
+
 ```
 
 
@@ -619,38 +610,27 @@ means        <- mxPath( from="one", to=c(mylabels,'Factor1'), arrows=1,
                                   "meanD","meanE","meanF","meanA","meanB","meanC",
                                   "meanD","meanE","meanF",NA) ) #means constant from time 1 to time 2
 
-oneFactorModel <- mxModel("Single Factor Model", type="RAM",
+myModel6 <- mxModel("Single Factor Model", type="RAM",
                           manifestVars=mylabels, latentVars="Factor1",
                           dataRaw, resVars, latVar, facLoads, means)
+Model6Fit <- mxRun(myModel6)
+summary.Model6<-summary(Model6Fit, refModels=mxRefModels(Model6Fit, run = TRUE)) 
 
-oneFactorFit<-mxRun(oneFactorModel)
-#summary(oneFactorFit) #uncomment this to see results
-summary6<-summary(oneFactorFit)
-summary6
-#NB comparison is between Models 2 and 4a
-myLLdiff<-round(summary2$Minus2LogLikelihood-summary6$Minus2LogLikelihood,1) #NB subtracting prior LL before changing it
-mydfdiff<-summary2$degreesOfFreedom-summary6$degreesOfFreedom
-myLL<-round(summary6$Minus2LogLikelihood,1)
-mydf<-summary6$degreesOfFreedom
-myp<-round(pchisq(myLLdiff, df=mydfdiff,lower.tail=FALSE),3)
-d.baseModel<-as.numeric(bigsummary$LLdiff[2])-as.numeric(bigsummary$chi.df[2])
-d.Model6<-myLLdiff-mydfdiff
-myCFI<-round((d.baseModel-d.Model6)/d.baseModel,3)
-myrmsea<-round(sqrt(myLLdiff-mydfdiff)/sqrt(mydfdiff*(summary6$numObs-1)),3)
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-BIC6 <- round(summary6$BIC.Mx,1)
-bigsummary[6,] <-c(myLL,mydf,'2 vs 6',myLLdiff,mydfdiff,myp,BIC6,myCFI,myrmsea,'Covariances: one factor')
-rownames(bigsummary)[6]<-'6. Person effect'
-
-
-#compare with  Model where no correlation between measures
-Model6test<-mxCompare(oneFactorFit,Model2Fit)
-Model6test
+test.6.2<-mxCompare(Model6Fit,Model2Fit)
+summary.Model6$Chi<-test.6.2$diffLL[2]
+summary.Model6$ChiDoF<-test.6.2$diffdf[2]
+summary.Model6$p<-test.6.2$p[2]
+mycomp<-'Model 2'
+thiscomment<-'Covariances: One factor'
+thisrowname<-'6.Person Effect'
+bigsummary<-addbig(summary.Model6,mycomp,thiscomment,thisrowname) 
 
 
 pmessage<-'One factor Model no better than Model with no covariance between measures'
 if(Model6test$p[2]<.05){
-  pmessage <- paste0('One factor Model (BIC=',BIC6,') is better fit than Model with no covariance between measures (BIC=',BIC2,')')
+  pmessage <- paste0('One factor Model is better fit than Model with no covariance between measures')
 }
 pmessage
 bigsummary
@@ -691,37 +671,32 @@ means        <- mxPath( from="one", to=c(mylabels,'Factor1','Factor2'), arrows=1
                                   "meanD","meanE","meanF","meanA","meanB","meanC",
                                   "meanD","meanE","meanF",NA,NA) )
 
-biFactorModel <- mxModel("BiFactor Model", type="RAM",
+myModel7 <- mxModel("BiFactor Model", type="RAM",
                           manifestVars=mylabels,
                           latentVars=c("Factor1","Factor2"),
                           dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
 
-biFactorFit <- mxRun(biFactorModel)
-summary7 <-summary(biFactorFit)
-summary7
-#NB comparison is between Models 6 and 7
-myLLdiff<-round(summary6$Minus2LogLikelihood-summary7$Minus2LogLikelihood,1) 
-mydfdiff<-summary6$degreesOfFreedom-summary7$degreesOfFreedom
-myLL<-round(summary7$Minus2LogLikelihood,1)
-mydf<-summary7$degreesOfFreedom
-myp<-round(pchisq(myLLdiff, df=mydfdiff,lower.tail=FALSE),3)
-d.baseModel<-d.Model6 #ie Model from prior section
-d.Model7<-myLLdiff-mydfdiff
-myCFI<-round((d.baseModel-d.Model7)/d.baseModel,3)
-myrmsea<-round(sqrt(myLLdiff-mydfdiff)/sqrt(mydfdiff*(summary7$numObs-1)),3)
+Model7Fit <- mxRun(myModel7)
+summary.Model7<-summary(Model7Fit, refModels=mxRefModels(Model7Fit, run = TRUE)) 
 
-BIC7 <- round(summary7$BIC.Mx,1)
-bigsummary[7,] <-c(myLL,mydf,'6 vs 7',myLLdiff,mydfdiff,myp,BIC7,myCFI,myrmsea,'Covariances: bifactor')
-rownames(bigsummary)[7]<-'7. Person x task effect'
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-mcomp<-mxCompare(biFactorFit,oneFactorFit)
+test.7.6<-mxCompare(Model7Fit,Model6Fit)
+summary.Model7$Chi<-test.7.6$diffLL[2]
+summary.Model7$ChiDoF<-test.7.6$diffdf[2]
+summary.Model7$p<-test.7.6$p[2]
+mycomp<-'Model 6'
+thiscomment<-'Covariances: bifactor'
+thisrowname<-'7.Task x Person Effect'
+bigsummary<-addbig(summary.Model7,mycomp,thiscomment,thisrowname) 
+
 pmessage<-'Bi-factor Model does not improve fit over one factor Model'
 
-if (mcomp$p[2]<.05){pmessage <- paste0('Bi-factor Model (BIC=',BIC7,') is better fit than one factor Model (BIC=',BIC6,')')}
+if (test.7.6$p[2]<.05){pmessage <- paste0('Bi-factor Model is better fit than one factor Model' )}
 pmessage
 mcomp
 bigsummary
-#mxCheckIdentification(biFactorModel, details=TRUE) # check Model identification: all OK
+#mxCheckIdentification(myModel7, details=TRUE) # check Model identification: all OK
 
 ```
 Better fit for bifactor than for single factor, though CFI is still below accepted value for good fit. 
@@ -729,91 +704,78 @@ To explore reasons for poor fit, can look at differences between expected and ob
 
 ## Explore reasons for poor fit
 We can extract the observed covariance matrix and compare it with the expected values from the current Model. If we take the difference between these, we can identify whether there are particular covariances that are problematic.
-```{r covexplore}
-mymat.e<-mxGetExpected(biFactorFit,"covariance")
+```{r covexplorefunction}
+covexplore<-function(ModelFit,mytitle){
+
+mymat.e<-mxGetExpected(ModelFit,"covariance")
 mymat.o <- cov(alltask,use="pairwise.complete.obs")
 mymat.d<-abs(mymat.e-mymat.o) #absolute size of mismatch between obs and expected
 mymat.d1<-mymat.e-mymat.o #size of mismatch with sign
 cc<-rainbow(ncol(mymat.d1))
-heatmap(mymat.d1,keep.dendro=FALSE,Rowv=NA,Colv=NA,
+h<-heatmap(mymat.d1,keep.dendro=FALSE,Rowv=NA,Colv=NA,
         revC=TRUE,col = cm.colors(256),margins=c(5,5),
-        main='Signed diff exp/obs cov')
+        main=mytitle)
+return(h)
+}
 ```
 
-Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). Note the heat map show dark pink on the diagonal for SentGen1 and PhonDec2. This means that the observed variance for these measures is lower than the Model predicts. The corresponding diagonal blocks for SentGen2 and PhonDec1 are darkish blue: this is because we have set the estimated variances for the time 1 and time 2 tests to be the same (so based on average); so if observed value at one time is higher than the estimate, the estimate for the other time will be lower. When we look at the observed values in the stargazer table above, we can see that there are relatively large differences in variances for time1 and time2 for these two tasks. We can tweak one line of the Model, to allow these variances to differ, and re-run. The fit does then improve. 
-(We achieve this by just giving a different label to the path - see below)
+```{r makeheatmap}
+covexplore(Model7Fit,'Model 7: obs/exp covariance diffs')
+```
 
-resVars      <- mxPath( from=mylabels, arrows=2,
-                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
-                        labels=c("e1","e2","e3","e4","e5","e6","e1","e12","e3","e14","e5","e6") )
-                        
-Given that this worked well, I went further and allowed the variance terms to vary across sessions for all variables. We then get further improvement of fit.
+Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). Note the heat map show dark pink on the diagonal for SentGen1 and ListGen1. This means that the observed variance for these measures is lower than the Model predicts. The corresponding diagonal blocks for SentGen2 and PhonDec1 are blue: this is because we have set the estimated variances for the time 1 and time 2 tests to be the same (so based on average); so if observed value at one time is higher than the estimate, the estimate for the other time will be lower. When we look at the observed values in the stargazer table above, we can see that there are relatively large differences in variances for time1 and time2 for these two tasks. We can tweak one line of the Model, to allow variances to differ across occasions, and re-run. The fit does then improve. 
+(We achieve this by just giving a different label to the path - see below)
 
 Here is the Model with those settings:
 ##Bifactor Model with unconstrained variances for T1 and T2
 ```{r bifactor2}
-doextra<-1
-if(doextra==1){
+
   #keep all the same except for resVars
 resVars      <- mxPath( from=mylabels, arrows=2,
                         free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
                         labels=c("e1","e2","e3","e4","e5","e6","e11","e12","e13","e14","e15","e16") )
 
-biFactorModelb <- mxModel("BiFactor Modelb", type="RAM",
+myModel8 <- mxModel("BiFactor Modelb", type="RAM",
                           manifestVars=mylabels,
                           latentVars=c("Factor1","Factor2"),
                           dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
 
-biFactorFitb <- mxRun(biFactorModelb)
-summary8<-summary(biFactorFitb)
+Model8Fit <- mxRun(myModel8)
+summary.Model8<-summary(Model8Fit, refModels=mxRefModels(Model8Fit, run = TRUE)) 
 
-summary8
-#NB comparison is between Models 6 and 8
-myLLdiff<-round(summary6$Minus2LogLikelihood-summary8$Minus2LogLikelihood,1) 
-mydfdiff<-summary6$degreesOfFreedom-summary8$degreesOfFreedom
-myLL<-round(summary8$Minus2LogLikelihood,1)
-mydf<-summary8$degreesOfFreedom
-myp<-round(pchisq(myLLdiff, df=mydfdiff,lower.tail=FALSE),3)
-d.baseModel<-d.Model6 #ie Model from prior section
-d.Model8<-myLLdiff-mydfdiff
-myCFI<-round((d.baseModel-d.Model8)/d.baseModel,3)
-myrmsea<-round(sqrt(myLLdiff-mydfdiff)/sqrt(mydfdiff*(summary7$numObs-1)),3)
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-BIC8 <- round(summary8$BIC.Mx,1)
-bigsummary[8,] <-c(myLL,mydf,'6 vs 8',myLLdiff,mydfdiff,myp,BIC8,myCFI,myrmsea,'Covariances: bifactor.free vars')
-rownames(bigsummary)[7]<-'7. Person x task effect2'
-mysummary<-summary8$parameters[1:10,c(1,3:6)]
-mysummary$z<-mysummary$Estimate/mysummary$Std.Error
-mcomp<-mxCompare(biFactorFitb,oneFactorFit)
+test.8.7<-mxCompare(Model8Fit,Model7Fit)
+summary.Model8$Chi<-test.8.7$diffLL[2]
+summary.Model8$ChiDoF<-test.8.7$diffdf[2]
+summary.Model8$p<-test.8.7$p[2]
+mycomp<-'Model 8'
+thiscomment<-'Bifactor, vars differ by session'
+thisrowname<-'8.Task x Person Effect, free vars'
+bigsummary<-addbig(summary.Model8,mycomp,thiscomment,thisrowname) 
+
 pmessage<-'Bi-factor Modelb does not improve fit over one factor Model'
 
-pmessage <- paste0('Bi-factor Modelb (BIC=',BIC8,') is better fit than one factor Model (BIC=',BIC6,')')
+pmessage <- paste0('Bi-factor Modelb  is better fit than one factor Model ')
 
-if (mcomp$p[2]<.05){psummary <-'Bi-factor Modelb gives better fit than one factor Model'}
+if (test.8.7$p[2]<.05){psummary <-'Bi-factor Modelb gives better fit than one factor Model'}
 pmessage
-mcomp
+test.8.7
 bigsummary
-}
-```
-NB We ought to do the same for variances for one-factor Model, otherwise it is an unfair comparison?
 
-Next chunk just redoes the heatmap for the new Model.
+```
+
+
+Next chunk just redoes the heatmap for the new Model. Note that the colours are scaled so we still see some strong colours, regardless of absolute values of differences. The darker colours don't form any coherent pattern, so there is no justification for further tweaks of the model.
 
 ```{r covexplore2}
-if(doextra==1){
-  mymat.e<-mxGetExpected(biFactorFitb,"covariance")
-mymat.o <- cov(alltask,use="pairwise.complete.obs")
-mymat.d<-abs(mymat.e-mymat.o) #absolute size of mismatch between obs and expected
-mymat.d1<-mymat.e-mymat.o #size of mismatch with sign
-cc<-rainbow(ncol(mymat.d1))
-heatmap(mymat.d1,keep.dendro=FALSE,Rowv=NA,Colv=NA,
-        revC=TRUE,col = cm.colors(256),margins=c(5,5),
-        main='Signed diff exp/obs cov')
-}
+
+covexplore(Model8Fit,'Model 8: obs/exp covariance diffs')
+
 ```
 
 ## Draw simplified path diagram
-Draw diagram of the bi-factor Model, with nonsignificant paths omitted.
+Draw diagram of the bi-factor Model 8, with nonsignificant paths omitted.
 N.B. The file for_graphviz is set up in advance and read in and modified according to results. For this part of the script to work you must have the file 'for_graphviz.csv' in your working directory.
 
 Test A is shown in red as this has fixed paths to X1 (1) and X2 (0).
@@ -825,6 +787,9 @@ NB If this figure is published, need to make following points:
 * Also nonsignificant paths are omitted.
 ```{r drawpaths}
 require(stringr)
+
+mysummary<-summary.Model8$parameters[1:10,c(1,3:6)]
+mysummary$z<-mysummary$Estimate/mysummary$Std.Error
 # omxGraphviz(biFactorModel, dotFilename = "bifactor.dot")
 # grViz("bifactor.dot") #this will generate a .dot file but it
 # is messy, as it shows time 1 and time 2 measures, as well as means
@@ -844,7 +809,7 @@ for (i in 1:6){ #each task
 
     if(i>1){ #measure A is fixed so not in the table
       thatrow<-thatrow+1
-    if(mysummary$z[thatrow]<1.96)
+    if(mysummary$z[thatrow]<1.65)
     {mybit2[thisrow,]<-''} #delete this one
     else{
       pathlabel<-round(mysummary$Estimate[thatrow],2)
