@@ -856,20 +856,53 @@ grViz(dotFilename)
 
 ```
 
+##Check solution robustness with drop one approach
+
+Final bifactor model re-run with one subject dropped each time.
 
 
 ```{r dropone}
-#This bit of script was used at the start of OpenMx in case we wanted to try 'drop one' approach
-#to test consistency of bifactor solution. It will drop cases specified in thisdrop.
-#Could do this in a loop once we have an optimal approach.
-#Not currently used
-thisdrop <- 0 #specify a number for participant to be dropped (1 to 30)
+#First create dataframe to save the results
+droponesummary <- mysummary[,c(1:3,6)]
+droponesummary$z<-round(droponesummary$z,2)
+colnames(droponesummary)[4]<-'z.all'
+droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
+#Use'drop one' approach - reduce the dataset by one on each run
+#
+ for (thisdrop in 1:nrow(alltask)){
+   dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
  
- if(thisdrop>0){
-   dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )}
-  
+    #keep all other parameters same as last model
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
 
+myModel8 <- mxModel("BiFactor Modelb", type="RAM",
+                          manifestVars=mylabels,
+                          latentVars=c("Factor1","Factor2"),
+                          dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
+
+Model8Fit <- mxRun(myModel8)
+thissummary<-summary(Model8Fit)
+temp<-thissummary$parameters[1:10,c(1,3:6)]
+nucol<-ncol(droponesummary)+1
+droponesummary[,nucol]<-round(temp$Estimate/temp$Std.Error,2)
+colnames(droponesummary)[nucol]<-paste0('z.',thisdrop)
+ }
+write.table(droponesummary, 'dropone_z', sep="\t",quote=F) 
 ```
+
+##Additional exploration
+Concern that removal of one S, row 23, alters model. This person has strong R dom for sentgen and strong L dom for jabberwocky, which drives contrast between the two factors.
+
+
+```{r checkindividuals}
+
+myD<-(alltask$SentGen1+alltask$SentGen2)/2
+myF<-(alltask$Jabber1+alltask$Jabber2)/2
+plot(myD,myF,pch=levels(particdat$handedness))
+```
+
 ##Session information
 ```{r sessinfo}
 sessionInfo()
