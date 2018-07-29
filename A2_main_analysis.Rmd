@@ -923,6 +923,8 @@ alltask$hand[w]<-1
 
 
 plot(alltask$f1score,alltask$f2score,col=alltask$hand,pch=15)
+abline(v=0,lty=2)
+abline(h=0,lty=2)
 cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
 
 ```
