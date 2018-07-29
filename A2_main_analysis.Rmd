@@ -900,21 +900,22 @@ This shows that although the factors are modeled to be independent, they are hig
 ```{r makefacscores}
 #? Use loadings or zscores?
 #This is with loadings - but it makes little difference
+#In weighted sum use original data, including excluded datapoint (alltaskall) to avoid losing subjects from this
 allz1<-c(1,mysummary$Estimate[1:5])
 allz2<-c(0,mysummary$Estimate[6:10]) #1st and 6th values for task A
 for (i in 1:nrow(alltask)){
-alltask$f1score[i]<-alltask[i,1]*allz1[1]+
-  alltask[i,2]*allz1[2]+
-  alltask[i,3]*allz1[3]+
-  alltask[i,4]*allz1[4]+
-  alltask[i,5]*allz1[5]+
-  alltask[i,6]*allz1[6]
-alltask$f2score[i]<-alltask[i,1]*allz2[1]+
-  alltask[i,2]*allz2[2]+
-  alltask[i,3]*allz2[3]+
-  alltask[i,4]*allz2[4]+
-  alltask[i,5]*allz2[5]+
-  alltask[i,6]*allz2[6]
+alltask$f1score[i]<-alltaskall[i,1]*allz1[1]+
+  alltaskall[i,2]*allz1[2]+
+  alltaskall[i,3]*allz1[3]+
+  alltaskall[i,4]*allz1[4]+
+  alltaskall[i,5]*allz1[5]+
+  alltaskall[i,6]*allz1[6]
+alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
+  alltaskall[i,2]*allz2[2]+
+  alltaskall[i,3]*allz2[3]+
+  alltaskall[i,4]*allz2[4]+
+  alltaskall[i,5]*allz2[5]+
+  alltaskall[i,6]*allz2[6]
 }
 alltask$hand<-2
 w<- which(particdat$handedness=='R')
