@@ -92,7 +92,7 @@ rm(oneFactorFit)
 ```{r definedir}
 thisuser <-'dorothybishop'
 thisdrive<- '' #may need to set this to 'C:' for PC users
-readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/Project A2/A2_Data/')
+readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/old data/studyZ_SRT/')
 ```
 ##Code for reading and reshaping data
 ```{r readdata}

@@ -862,6 +862,8 @@ Final bifactor model re-run with one subject dropped each time.
 
 
 ```{r dropone}
+do.dropone<-0
+if (do.dropone==1){
 #First create dataframe to save the results
 droponesummary <- mysummary[,c(1:3,6)]
 droponesummary$z<-round(droponesummary$z,2)
@@ -890,10 +892,51 @@ droponesummary[,nucol]<-round(temp$Estimate/temp$Std.Error,2)
 colnames(droponesummary)[nucol]<-paste0('z.',thisdrop)
  }
 write.table(droponesummary, 'dropone_z', sep="\t",quote=F) 
+}
+```
+##Make factor scores and plot them
+This shows that although the factors are modeled to be independent, they are highly intercorrelated. Handedness is colour coded.
+
+```{r makefacscores}
+#? Use loadings or zscores?
+#This is with loadings - but it makes little difference
+allz1<-c(1,mysummary$Estimate[1:5])
+allz2<-c(0,mysummary$Estimate[6:10]) #1st and 6th values for task A
+for (i in 1:nrow(alltask)){
+alltask$f1score[i]<-alltask[i,1]*allz1[1]+
+  alltask[i,2]*allz1[2]+
+  alltask[i,3]*allz1[3]+
+  alltask[i,4]*allz1[4]+
+  alltask[i,5]*allz1[5]+
+  alltask[i,6]*allz1[6]
+alltask$f2score[i]<-alltask[i,1]*allz2[1]+
+  alltask[i,2]*allz2[2]+
+  alltask[i,3]*allz2[3]+
+  alltask[i,4]*allz2[4]+
+  alltask[i,5]*allz2[5]+
+  alltask[i,6]*allz2[6]
+}
+alltask$hand<-2
+w<- which(particdat$handedness=='R')
+alltask$hand[w]<-1
+
+
+plot(alltask$f1score,alltask$f2score,col=alltask$hand,pch=15)
+cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
+
 ```
 
+
 ##Additional exploration
-Concern that removal of one S, row 23, alters model. This person has strong R dom for sentgen and strong L dom for jabberwocky, which drives contrast between the two factors.
+Concern that removal of one S, row 23, alters path model. This person has strong R dom for sentgen and strong L dom for jabberwocky, which drives contrast between the two factors.
+Nevertheless, if whole sequence run omitting this S, we still get a bifactor solution that is better than a single factor.
+Also, model varies depending on which variable is set as the fixed one. This does NOT affect model fit, but it does affect model path coefficients.
+So this raises several questions.
+First: is it sensible to interpret the path coefficients?
+Is it sensible to fix them so that one task loads 1 on one factor and 0 on the other - forcing a distinction? Using List Generation for this may be esp problematic as it is the least reliable task and shows weak correlations with other tasks.
+
+Nevertheless, the pattern of correlations gives some support to the idea that correlations of tasks EF cluster, and those with B-D cluster - even when subject 23 omitted (see knitted html for that situation)
+
 
 
 ```{r checkindividuals}
