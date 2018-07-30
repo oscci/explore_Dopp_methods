@@ -944,9 +944,9 @@ Nevertheless, the pattern of correlations gives some support to the idea that co
 
 ```{r checkindividuals}
 
-myD<-(alltask$SentGen1+alltask$SentGen2)/2
-myF<-(alltask$Jabber1+alltask$Jabber2)/2
-plot(myD,myF,pch=levels(particdat$handedness))
+meanSentGen<-rowMeans(alltask[,c(4,10)],na.rm=T)
+meanJabberwocky<-rowMeans(alltask[,c(6,12)],na.rm=T)
+plot(meanSentGen,meanJabberwocky,col=alltask$hand,pch=15)
 ```
 
 ##Session information
