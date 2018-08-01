@@ -874,7 +874,7 @@ colnames(droponesummary)[4]<-'z.all'
 droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
 #Use'drop one' approach - reduce the dataset by one on each run
 #
-PT_summary<-matrix(NA,ncol=29, nrow=30)
+PT_summary<-matrix(NA,ncol=29, nrow=30) #initialise matrix to gather estimates for each of 29 parameters for each of 30 runs
 
  for (thisdrop in 1:nrow(alltask)){
    dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
@@ -942,17 +942,15 @@ cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
   # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
  n=30
- real_est<-summary.Model8$parameters$Estimate
+ real_est<-summary.Model8$parameters$Estimate #estimate with all cases included
  #PT_summary
- PT_means<-colMeans(PT_summary)
- JK_bias<-(n-1)*(PT_means-real_est)
+ PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
+ JK_bias<-(n-1)*(PT_means-real_est) 
  
  Jack_est<-(n*real_est)-((n-1)*PT_means)
 
- 
  # calculates the Jackknife SE estimates to allow us to calculate the CI.
  
-
  #PT_summary
  Jack_SE<-vector(mode="numeric",length=29)
  for (i in 1:29)
