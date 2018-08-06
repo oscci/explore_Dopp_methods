@@ -18,6 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 `r Sys.time()`
 
 ## Background
+Original protocol for project is here: <https://osf.io/tkpm2/registrations/>
+
 See Dopp_explore_log.RMd for more background on how Modeling was developed.
 
 Source reference is: Kline, R. B. (2011). Principles and practice of structural equation Modeling, 3rd edition. New York: Guilford Press.
@@ -113,13 +115,13 @@ N.B. Can select to use original LI values based on peak, or LI values from mean 
 ```{r readdata}
 #read in data from sessions 1 and 2, having saved as .csv
 #NB. Need to set working directory to location of data files - or else specify path
-usemean <-1 #set to zero if you want to analyse peak-based LI
+usemean <-1 #set to zero to analyse original peak-based LI values
 data1<-read.csv('Results_Session1.csv')
 data2<-read.csv('Results_Session2.csv')
 
 alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
              select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
-#alltaskall<-alltaskall[-24]
+
 if(usemean==1){
 alltaskall <- cbind(select(data1,A1.LI_mean,B1.LI_mean,C1.LI_mean,D1.LI_mean,E1.LI_mean,F1.LI_mean),
              select(data2,A2.LI_mean,B2.LI_mean,C2.LI_mean,D2.LI_mean,E2.LI_mean,F2.LI_mean))
@@ -133,7 +135,7 @@ head(alltaskall)
 
 
 ##Code for identifying exclusions and substituting NA based on SE
-Please see justification in Methods. This differs from what we preregistered but I think we can defend it as making more sense.
+Please see justification in Methods. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
 
 ```{r excludeSE}
 alltask<-alltaskall #create a new copy where the outliers will be coded as NA
@@ -323,7 +325,7 @@ dev.off()
 ##Structural equation Models: 
 
 
-###Free Means and Vars Model 
+###Model 1: Free Means and Vars Model 
 (from fig 4 in prereg document)
 
 This acts as baseline: it just Models means and variance: no relation between variables, 
@@ -416,6 +418,8 @@ N.B. The summary output shows estimates of variances (e) and means (M). Note tha
  This is achieved by giving the path the same name, e.g. meanA for A1 and A2
  N.B. This is not same as test-retest reliability: as covariances not considered.
  We're just testing if the mean values are similar time 1 and time 2, not whether same people are high or low.
+ 
+
 ```{r Model2}
 # residual variances
 resVars      <- mxPath( from=mylabels, arrows=2,
@@ -454,7 +458,7 @@ if(test.1.2$p[2]>.05){
 pmessage
 
 ```
-## Model where all tests equivalent: Model 3
+## Model 3: Model where all tests equivalent
 
 More extreme version of stability Model, where all means and all vars are the same.
 This tests (rather implausible!) hypothesis that all measures are similarly lateralised. It is equivalent to the 'population bias' Model.
@@ -496,7 +500,7 @@ if(test.2.3$p[2]<.05){pmessage <- 'Means differ between tasks'}
 pmessage
 bigsummary
 ```
-##Test dorsal/ventral/mixed Model (Model 4)
+##Model 4: Test dorsal/ventral/mixed Model
 
  
 This proposes pattern of means different for taskAB, C and DEF (Model 2a in prereg document).
@@ -545,7 +549,7 @@ rmessage
 my4
 
 ```
-##Lexical retrieval Model
+##Model 5: Lexical retrieval Model
 Hypothesis A.2 Strength of lateralization depends on the extent to which tasks require lexical retrieval (more lexical retrieval = stronger left lateralization).
 
 
@@ -597,8 +601,8 @@ my5
 
 
 
-##SEM Models including covariances
-Single factor Model (means equalized for T1 and T2).
+#SEM Models including covariances
+##Model 6: Single factor Model (means equalized for T1 and T2).
 
 If tasks are correlated (as they are) this will give a better fit than the preceding Models, which only looks at means.
 It is necessary to scale the paths from observed variables to latent factor in terms of one of the observed variables. We chose the first variable. NB I have checked that choice does not affect the factor solution.
@@ -655,7 +659,7 @@ bigsummary
 Note how the CFI is now in a more sensible range, but still is well below acceptable level.
 Will a bifactor Model improve this?
 
-##Bifactor Model
+##Model 7: Bifactor Model
 Here we specify two independent latent factors. Aim is to see whether the tests form two clusters.
 
 ```{r bifactor}
@@ -744,7 +748,10 @@ Dark colours (pink or blue) indicate lack of agreement between obs and expected 
 (We achieve this by just giving a different label to the path - see below)
 
 Here is the Model with those settings:
-##Bifactor Model with unconstrained variances for T1 and T2
+
+##Model 8: Bifactor Model with unconstrained variances for T1 and T2
+
+
 ```{r bifactor2}
 
   #keep all the same except for resVars
@@ -862,9 +869,12 @@ grViz(dotFilename)
 ##Check solution robustness with drop one approach
 
 Final bifactor model re-run with one subject dropped each time.
+Standardized factor loading for each run saved in dropone_z.csv.
+This reveals that on one run, when row 23 excluded, the model changes completely.
+This is problematic: suggests bifactor pattern of results depends on inclusion of data from one specific participant.
 
 
-```{r dropone}
+```{r dropone, echo=FALSE}
 do.dropone<-1
 if (do.dropone==1){
 #First create dataframe to save the results
@@ -901,14 +911,33 @@ colnames(droponesummary)[nucol]<-paste0('z.',thisdrop)
  }
 write.table(droponesummary, 'dropone_z', sep="\t",quote=F) 
 }
+t(droponesummary) #display transposed
 ```
+
+##Look at data for row 23
+Further exploratory analyses were conducted to gain insight into why row 23 data had a large effect on the solution
+
+```{r checkindividuals}
+
+#Add handedness data
+alltask$hand<-2
+w<- which(particdat$handedness=='R')
+alltask$hand[w]<-1
+
+meanSentGen<-rowMeans(alltask[,c(4,10)],na.rm=F)
+meanJabberwocky<-rowMeans(alltask[,c(6,12)],na.rm=T)
+plot(meanSentGen,meanJabberwocky,col=alltask$hand,pch=15)
+text(-2.5,2,'Row 23')
+```
+
 ##Make factor scores and plot them
-This shows that although the factors are modeled to be independent, they are highly intercorrelated. Handedness is colour coded.
+In a further exploratory analysis, we plotted factor scores by making a weighted sum of scores, using factor loadings as weights.
+This shows that although the factors are modeled to be independent, they are highly intercorrelated. Handedness is colour coded. Inspection of this figure suggests that left- and right-handers should be modeled separately. Indeed, if this script is rerun with right-handers only, then single factor model gives best solution.
 
 ```{r makefacscores}
 #? Use loadings or zscores?
 #This is with loadings - but it makes little difference
-#In weighted sum use original data, including excluded datapoint (alltaskall) to avoid losing subjects from this
+#In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
 allz1<-c(1,mysummary$Estimate[1:5])
 allz2<-c(0,mysummary$Estimate[6:10]) #1st and 6th values for task A
 for (i in 1:nrow(alltask)){
@@ -925,9 +954,6 @@ alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
   alltaskall[i,5]*allz2[5]+
   alltaskall[i,6]*allz2[6]
 }
-alltask$hand<-2
-w<- which(particdat$handedness=='R')
-alltask$hand[w]<-1
 
 
 plot(alltask$f1score,alltask$f2score,col=alltask$hand,pch=15)
@@ -936,6 +962,11 @@ abline(h=0,lty=2)
 cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
 
 ```
+
+##Jacknife estimates of path SEs
+Jacknife estimates considered for model SEs, which can be compared with standard method. The jacknife method uses the output from the drop-one analysis to look at distribution of estimates obtained with one subject omitted.
+It confirms that there are particular problems with estimates of paths from Jabberwocky to Factor 1 and from Sentence Generation to Factor 2.
+
 
 ```{R jackknife}
 
@@ -949,6 +980,9 @@ cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
  
  Jack_est<-(n*real_est)-((n-1)*PT_means)
 
+ plot(real_est,Jack_est)
+ 
+ 
  # calculates the Jackknife SE estimates to allow us to calculate the CI.
  
  #PT_summary
@@ -958,37 +992,21 @@ cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
  Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
  }
  myres<-summary.Model8$parameters[,1:6]
- myres$L_ci<-round(summary.Model8$parameters$Estimate-1.96*summary.Model8$parameters$Std.Error,2)
- myres$U_ci<-round(summary.Model8$parameters$Estimate+1.96*summary.Model8$parameters$Std.Error,2)
+ myres$L_ci<-round(summary.Model8$parameters$Estimate-1.65*summary.Model8$parameters$Std.Error,2)
+ myres$U_ci<-round(summary.Model8$parameters$Estimate+1.65*summary.Model8$parameters$Std.Error,2)
  myres$Jack_Estimate<-round(Jack_est,2)
  myres$Jack_Std.Error<-round(Jack_SE,2)
- myres$JK_L_ci<-round(Jack_est-1.96*Jack_SE,2)
- myres$JK_U_ci<-round(Jack_est+1.96*Jack_SE,2)
+ myres$JK_L_ci<-round(Jack_est-1.65*Jack_SE,2)
+ myres$JK_U_ci<-round(Jack_est+1.65*Jack_SE,2)
  myres$JK_bias<-round(JK_bias,2)
+ myres$Estimate<-round(myres$Estimate,2)
  
- myres
+ myres[,c(1,3,4,5,9)]
 
  write.csv(myres,"Jacknife_ests.csv")
 ```
 
-##Additional exploration
-Concern that removal of one S, row 23, alters path model. This person has strong R dom for sentgen and strong L dom for jabberwocky, which drives contrast between the two factors.
-Nevertheless, if whole sequence run omitting this S, we still get a bifactor solution that is better than a single factor.
-Also, model varies depending on which variable is set as the fixed one. This does NOT affect model fit, but it does affect model path coefficients.
-So this raises several questions.
-First: is it sensible to interpret the path coefficients?
-Is it sensible to fix them so that one task loads 1 on one factor and 0 on the other - forcing a distinction? Using List Generation for this may be esp problematic as it is the least reliable task and shows weak correlations with other tasks.
 
-Nevertheless, the pattern of correlations gives some support to the idea that correlations of tasks EF cluster, and those with B-D cluster - even when subject 23 omitted (see knitted html for that situation)
-
-
-
-```{r checkindividuals}
-
-meanSentGen<-rowMeans(alltask[,c(4,10)],na.rm=F)
-meanJabberwocky<-rowMeans(alltask[,c(6,12)],na.rm=T)
-plot(meanSentGen,meanJabberwocky,col=alltask$hand,pch=15)
-```
 
 ##Session information
 ```{r sessinfo}
