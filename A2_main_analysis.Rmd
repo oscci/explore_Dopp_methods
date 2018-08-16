@@ -1006,7 +1006,30 @@ It confirms that there are particular problems with estimates of paths from Jabb
  write.csv(myres,"Jacknife_ests.csv")
 ```
 
+```{r compare_baselines}
 
+olddir<-"~/Dropbox/Project A2/A2_Data/original_baseline/"
+oldbase1<-read.csv(paste0(olddir,'Results_Session1_baseline_-5_0.csv'))
+oldbase2<-read.csv(paste0(olddir,'Results_Session2_baseline_-5_0.csv'))
+allse.old <- cbind(select(oldbase1,A1.se,B1.se,C1.se,D1.se,E1.se,F1.se),
+             select(oldbase2,A2.se,B2.se,C2.se,D2.se,E2.se,F2.se))
+if (usemean==1){
+allse <- cbind(select(oldbase1,A1.mean_se,B1.mean_se,C1.mean_se,D1.mean_se,E1.mean_se,F1.mean_se),
+             select(oldbase2,A2.mean_se,B2.mean_se,C2.mean_se,D2.mean_se,E2.mean_se,F2.mean_se))
+}
+myse.old<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
+        allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
+
+
+newold<-data.frame(cbind(myse,myse.old))
+colnames(newold)<-c('new baseline se','old baseline se')
+
+ png(filename="baseline_se_compare.png")
+plot(newold[,2],newold[,1],xlab='Old baseline (-5 to 0 s)',ylab='New baseline (-5 to 2 s)')
+abline(coef=c(0,1))
+dev.off()
+
+```
 
 ##Session information
 ```{r sessinfo}
