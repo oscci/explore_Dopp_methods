@@ -63,19 +63,25 @@ readdir<-'' #use this if working directory set to folder with all the data
 
 ```{r participants}
 particdat<-read.csv('A2_Participant_Info.csv')
-
+rhanded<-which(particdat$handedness=='R')
 #Participant descriptors reported in paper
 print('Gender x handedness')
 table(particdat$Gender,particdat$handedness)
 ageyr<-particdat$Age_m/12
 print('Age in yr')
 summary(ageyr)
+
+RHonly<-1 #set to 0 if want to include L handers
+if (RHonly==1)
+{print('R handers only included in analysis')}
 ```
 
 ##Task performance data
 ```{r behaviouraldata}
 behavdat<-read.csv('A2_Behavioural_Data.csv')
-behavdat<-behavdat[1:30,] #remove some blank lines at end of file
+if (RHonly==1){
+behavdat<-behavdat[rhanded,] #remove some blank lines at end of file
+}
 stargazer(behavdat[,2:5],type='text')
 
 acc.cols<-c(7,10,13,16,19,22,25,28)
@@ -130,6 +136,9 @@ mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
             'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
 colnames(alltaskall)<-mylabels
 head(alltaskall)
+if (RHonly==1){
+alltaskall<-alltaskall[rhanded,]
+}
 ```
 
 
@@ -138,15 +147,17 @@ head(alltaskall)
 Please see justification in Methods. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
 
 ```{r excludeSE}
-alltask<-alltaskall #create a new copy where the outliers will be coded as NA
-#This bit of code selects just the R-handers
-#w<-which(particdat$handedness=='R')
-#alltask<-alltaskall[w,]
+alltask<-alltaskall
+#create a new copy where the outliers will be coded as NA
+
 allse <- cbind(select(data1,A1.se,B1.se,C1.se,D1.se,E1.se,F1.se),
              select(data2,A2.se,B2.se,C2.se,D2.se,E2.se,F2.se))
 if (usemean==1){
 allse <- cbind(select(data1,A1.mean_se,B1.mean_se,C1.mean_se,D1.mean_se,E1.mean_se,F1.mean_se),
              select(data2,A2.mean_se,B2.mean_se,C2.mean_se,D2.mean_se,E2.mean_se,F2.mean_se))
+}
+if (RHonly==1){
+  allse<-allse[rhanded,]
 }
 myse<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
         allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
@@ -167,11 +178,17 @@ print(paste('Dropped because high SE, N = ',dropSE))
 #if usemean==1, picks up subject 5 on PHondec1, and subject 9 on Jabber1
 
 #Now remove those with fewer than 12 trials in a condition
+remove.Ntrial<-1 #set to one to run exclusion of those with < 12 good trials
+if (remove.Ntrial==1){
 dropN<-0 #initialise counter
 nbit<-c('A1.N','B1.N','C1.N','D1.N','E1.N','F1.N')
+includesubs<-1:nrow(data1)
+if(RHonly==1){
+  includesubs<-rhanded
+}
 for (i in 1:6){
   w<-which(colnames(data1)==nbit[i])
-  ww<-which(data1[,w]<12)
+  ww<-which(data1[includesubs,w]<12)
   if(length(ww>0)){
     alltask[ww,i]<-NA
     dropN<-dropN+1
@@ -181,14 +198,14 @@ for (i in 1:6){
 nbit<-c('A2.N','B2.N','C2.N','D2.N','E2.N','F2.N')
 for (i in 1:6){
   w<-which(colnames(data2)==nbit[i])
-  ww<-which(data2[,w]<12)
+  ww<-which(data2[includesubs,w]<12)
   if(length(ww>0)){
     alltask[ww,(i+6)]<-NA
      dropN<-dropN+1
   }
 }
 print(paste('Dropped because < 12 trials, N = ',dropN))  
-  
+}
 #When usemean==1, dropped data points are S13 Sentgen2, S14 Listgen2, S26 Sentcomp1 and S30 Sentgen1
 ```
 ##Show means etc for tasks with time1 and time2 adjacent
@@ -239,10 +256,11 @@ for (j in 1:12){
 # Melt cleverly reshapes LI_data into a long format using ID 
 # (the only factor) as the categorical variable    
 LI_long <- melt(alltask) #version with outliers removed
-LI_long$ID<-rep(1:30,6)
-LI_long$Session<-c(rep(1,180),rep(2,180))
-LI_long$Task<-c(rep('A',30),rep('B',30),rep('C',30),rep('D',30),rep('E',30),rep('F',30),
-                rep('A',30),rep('B',30),rep('C',30),rep('D',30),rep('E',30),rep('F',30)) 
+myrow<-nrow(alltask)
+LI_long$ID<-rep(1:myrow,6)
+LI_long$Session<-c(rep(1,myrow*6),rep(2,myrow*6))
+LI_long$Task<-c(rep('A',myrow),rep('B',myrow),rep('C',myrow),rep('D',myrow),rep('E',myrow),rep('F',myrow),
+                rep('A',myrow),rep('B',myrow),rep('C',myrow),rep('D',myrow),rep('E',myrow),rep('F',myrow)) 
 colnames(LI_long)[2]<-'LI'
 png(filename="LIpirateA2.png", width=1500, height=1200,res=300)
 #par(mai = c(.5, .8, .05, 0.05))# mai specifies bottom, left, top and right margins in inches
@@ -819,10 +837,11 @@ NB If this figure is published, need to make following points:
 ```{r drawpaths}
 require(stringr)
 
-mysummary<-summary.Model8$parameters[1:10,c(1,3:6)]
-if (usemean==0){
-  mysummary<-summary.Model7$parameters[1:10,c(1,3:6)] #model 7 is best fit for peak values
-}
+mysummary<-summary.Model7$parameters[1:10,c(1,3:6)]
+#With Rhanders model 7 is best fit anyhow, so next bit is irrelevant
+# if (usemean==0){
+#   mysummary<-summary.Model7$parameters[1:10,c(1,3:6)] #model 7 is best fit for peak values
+# }
 mysummary$z<-mysummary$Estimate/mysummary$Std.Error
 # omxGraphviz(biFactorModel, dotFilename = "bifactor.dot")
 # grViz("bifactor.dot") #this will generate a .dot file but it
@@ -884,9 +903,9 @@ colnames(droponesummary)[4]<-'z.all'
 droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
 #Use'drop one' approach - reduce the dataset by one on each run
 #
-PT_summary<-matrix(NA,ncol=29, nrow=30) #initialise matrix to gather estimates for each of 29 parameters for each of 30 runs
+PT_summary<-matrix(NA,ncol=29, nrow=myrow) #initialise matrix to gather estimates for each of 29 parameters for each of 30 runs
 
- for (thisdrop in 1:nrow(alltask)){
+ for (thisdrop in 1:myrow){
    dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
  
     #keep all other parameters same as last model
@@ -920,9 +939,12 @@ Further exploratory analyses were conducted to gain insight into why row 23 data
 ```{r checkindividuals}
 
 #Add handedness data
+
 alltask$hand<-2
+if(RHonly==0){
 w<- which(particdat$handedness=='R')
 alltask$hand[w]<-1
+}
 
 meanSentGen<-rowMeans(alltask[,c(4,10)],na.rm=F)
 meanJabberwocky<-rowMeans(alltask[,c(6,12)],na.rm=T)
@@ -972,7 +994,7 @@ It confirms that there are particular problems with estimates of paths from Jabb
 
   # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
- n=30
+ n=myrow
  real_est<-summary.Model8$parameters$Estimate #estimate with all cases included
  #PT_summary
  PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
@@ -986,8 +1008,8 @@ It confirms that there are particular problems with estimates of paths from Jabb
  # calculates the Jackknife SE estimates to allow us to calculate the CI.
  
  #PT_summary
- Jack_SE<-vector(mode="numeric",length=29)
- for (i in 1:29)
+ Jack_SE<-vector(mode="numeric",length=(myrow-1))
+ for (i in 1:(myrow-1))
  {
  Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
  }
