@@ -49,6 +49,7 @@ library('devtools')
 library("reshape2")
 library("yarrr")
 
+setwd("C:/Users/zwoodhead/Dropbox/Project A2/A2_Data")
 
 ```
 ##Code for setting directory flexibly
