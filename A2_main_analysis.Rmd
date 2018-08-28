@@ -49,6 +49,7 @@ library('devtools')
 library("reshape2")
 library("yarrr")
 
+setwd("C:/Users/zwoodhead/Dropbox/Project A2/A2_Data")
 
 ```
 ##Code for setting directory flexibly
@@ -64,6 +65,13 @@ readdir<-'' #use this if working directory set to folder with all the data
 ```{r participants}
 particdat<-read.csv('A2_Participant_Info.csv')
 rhanded<-which(particdat$handedness=='R')
+
+RHonly<-1 #set to 0 if want to include L handers
+if (RHonly==1)
+{print('R handers only included in analysis')
+  particdat <- particdat[rhanded,]}
+
+
 #Participant descriptors reported in paper
 print('Gender x handedness')
 table(particdat$Gender,particdat$handedness)
@@ -71,9 +79,7 @@ ageyr<-particdat$Age_m/12
 print('Age in yr')
 summary(ageyr)
 
-RHonly<-1 #set to 0 if want to include L handers
-if (RHonly==1)
-{print('R handers only included in analysis')}
+
 ```
 
 ##Task performance data
@@ -82,15 +88,25 @@ behavdat<-read.csv('A2_Behavioural_Data.csv')
 if (RHonly==1){
 behavdat<-behavdat[rhanded,] #remove some blank lines at end of file
 }
-stargazer(behavdat[,2:5],type='text')
 
-acc.cols<-c(7,10,13,16,19,22,25,28)
-rt.cols<-acc.cols+1
-#accuracy data on tasks B,C, E and F - stargazer for quick check
+#word data
+word.cols<-grep('*.Words',colnames(behavdat))
+stargazer(behavdat[,word.cols],type='text')
+
+#accuracy data
+acc.cols<-grep('*.Acc', colnames(behavdat))
 print('Percentages correct')
 stargazer(behavdat[,acc.cols],type='text')
+
+#RT data
+rt.cols<-grep('*.RT', colnames(behavdat))
 print('RT')
 stargazer(behavdat[,rt.cols],type='text')
+
+#omit data
+omit.cols<-grep('*.Omit',colnames(behavdat))
+print('Omit')
+stargazer(behavdat[,omit.cols],type='text')
 
 #make data frame to hold data formatted for paper
 behavdf<-data.frame(matrix(NA,nrow=4,ncol=8))
@@ -171,7 +187,7 @@ for (i in 1:12){
 w<-which(allse[,i]>Qlimit)
 if (length(w)>0){
 alltask[w,i]<-NA
-dropSE<-dropSE+1
+dropSE <- dropSE + sum(is.na(alltask[,i]))
 }
 }
 print(paste('Dropped because high SE, N = ',dropSE))
@@ -180,18 +196,20 @@ print(paste('Dropped because high SE, N = ',dropSE))
 #Now remove those with fewer than 12 trials in a condition
 remove.Ntrial<-1 #set to one to run exclusion of those with < 12 good trials
 if (remove.Ntrial==1){
-dropN<-0 #initialise counter
+
 nbit<-c('A1.N','B1.N','C1.N','D1.N','E1.N','F1.N')
 includesubs<-1:nrow(data1)
 if(RHonly==1){
   includesubs<-rhanded
 }
+dropN<-0 #initialise counter
+
 for (i in 1:6){
   w<-which(colnames(data1)==nbit[i])
   ww<-which(data1[includesubs,w]<12)
   if(length(ww>0)){
     alltask[ww,i]<-NA
-    dropN<-dropN+1
+    dropN <- dropN + sum(data1[includesubs,w] < 12)
   }
 }
 
@@ -201,7 +219,7 @@ for (i in 1:6){
   ww<-which(data2[includesubs,w]<12)
   if(length(ww>0)){
     alltask[ww,(i+6)]<-NA
-     dropN<-dropN+1
+     dropN <- dropN + sum(data2[includesubs,w] < 12)
   }
 }
 print(paste('Dropped because < 12 trials, N = ',dropN))  
