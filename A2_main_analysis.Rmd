@@ -226,6 +226,19 @@ print(paste('Dropped because < 12 trials, N = ',dropN))
 }
 #When usemean==1, dropped data points are S13 Sentgen2, S14 Listgen2, S26 Sentcomp1 and S30 Sentgen1
 ```
+##Try with different order of variables
+```{r reordertasks}
+#Reassuring that reordering variables does not affect model fit
+#However, it does affect the model structure.
+tryreorder<-1
+if (tryreorder==1){
+  nuorder<-c(4,1,2,3,5,6,10,7,8,9,11,12)
+ # nuorder<-c(6,1,2,3,4,5,12,7,8,9,10,11)
+alltask<-alltask[,nuorder]
+alltaskall<-alltaskall[,nuorder]
+mylabels<-mylabels[nuorder]
+}
+```
 ##Show means etc for tasks with time1 and time2 adjacent
 ```{r stargaze}
 stargazer(alltask[,c(1,7,2,8,3,9,4,10,5,11,6,12)],type='text')
@@ -651,7 +664,7 @@ resVars      <- mxPath( from=mylabels, arrows=2,
 
 # latent variance - Factor1 is the single factor
 latVar       <- mxPath( from="Factor1", arrows=2,
-                        free=TRUE, values=1, labels ="varFactor1" )
+                        free=T, values=1, labels ="varFactor1" )
 # factor loadings
 facLoads     <- mxPath( from="Factor1", to=mylabels, arrows=1,
                         free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
@@ -780,66 +793,15 @@ return(h)
 covexplore(Model7Fit,'Model 7: obs/exp covariance diffs')
 ```
 
-Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). Note the heat map show dark pink on the diagonal for SentGen1 and ListGen1. This means that the observed variance for these measures is lower than the Model predicts. The corresponding diagonal blocks for SentGen2 and PhonDec1 are blue: this is because we have set the estimated variances for the time 1 and time 2 tests to be the same (so based on average); so if observed value at one time is higher than the estimate, the estimate for the other time will be lower. When we look at the observed values in the stargazer table above, we can see that there are relatively large differences in variances for time1 and time2 for these two tasks. We can tweak one line of the Model, to allow variances to differ across occasions, and re-run. The fit does then improve. 
-(We achieve this by just giving a different label to the path - see below)
-
-Here is the Model with those settings:
-
-##Model 8: Bifactor Model with unconstrained variances for T1 and T2
-
-
-```{r bifactor2}
-
-  #keep all the same except for resVars
-resVars      <- mxPath( from=mylabels, arrows=2,
-                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
-                        labels=c("e1","e2","e3","e4","e5","e6","e11","e12","e13","e14","e15","e16") )
-
-mymodel7 <- mxModel("BiFactor Modelb", type="RAM",
-                          manifestVars=mylabels,
-                          latentVars=c("Factor1","Factor2"),
-                          dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
-
-model7Fit <- mxRun(mymodel7)
-summary.model7<-summary(model7Fit, refModels=mxRefModels(model7Fit, run = TRUE)) 
-
-#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
-
-test.8.7<-mxCompare(model7Fit,Model7Fit)
-summary.model7$Chi<-test.8.7$diffLL[2]
-summary.model7$ChiDoF<-test.8.7$diffdf[2]
-summary.model7$p<-test.8.7$p[2]
-mycomp<-'Model 7'
-thiscomment<-'Bifactor, vars differ by session'
-thisrowname<-'8.Task x Person Effect, free vars'
-bigsummary<-addbig(summary.model7,mycomp,thiscomment,thisrowname) 
-
-pmessage<-'Bi-factor Modelb does not improve fit over one factor Model'
-
-pmessage <- paste0('Bi-factor Modelb  is better fit than one factor Model ')
-
-if (test.8.7$p[2]<.05){psummary <-'Bi-factor Modelb gives better fit than one factor Model'}
-pmessage
-test.8.7
-bigsummary
-sumfilename<-"bigsummary.txt"
-if(usemean==0){
-  sumfilename<-"bigsummary_peak.txt"
-}
-write.table(bigsummary, sumfilename, sep="\t",quote=F) 
-```
+Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). Note the heat map show dark pink on the diagonal for SentGen1 and ListGen1. This means that the observed variance for these measures is lower than the Model predicts. The corresponding diagonal blocks for SentGen2 and PhonDec1 are blue: this is because we have set the estimated variances for the time 1 and time 2 tests to be the same (so based on average); so if observed value at one time is higher than the estimate, the estimate for the other time will be lower. 
 
 
 Next chunk just redoes the heatmap for the new Model. Note that the colours are scaled so we still see some strong colours, regardless of absolute values of differences. The darker colours don't form any coherent pattern, so there is no justification for further tweaks of the model.
 
-```{r covexplore2}
 
-covexplore(Model8Fit,'Model 8: obs/exp covariance diffs')
-
-```
 
 ## Draw simplified path diagram
-Draw diagram of the bi-factor Model 8, with nonsignificant paths omitted.
+Draw diagram of the bi-factor Model 7, with nonsignificant paths omitted.
 The criterion for a non-significant path is currently set to z = 1.65, but it is rather arbitrary, and the picture will look different depending on how stringent you make it.
 N.B. The file for_graphviz is set up in advance and read in and modified according to results. For this part of the script to work you must have the file 'for_graphviz.csv' in your working directory.
 
@@ -892,15 +854,23 @@ for (i in 1:6){ #each task
   }
 }
 mybit2[19,]<-'' #delete path for A to X2: this one was fixed to 0
+graphname<-paste0('Order_',colnames(alltask)[1],colnames(alltask)[2],colnames(alltask)[3],colnames(alltask)[4],colnames(alltask)[5],colnames(alltask)[6])
+mybit2[25,]<-paste("label=",graphname,";")
+
 dotFilename<-'dottry.dot'
 if(usemean==0){
   dotFilename<-'dottry_peak.dot'
 }
+
+
 write.table(mybit2, dotFilename, append = FALSE,
             row.names = FALSE, col.names = FALSE,quote=FALSE)
 
+par(mfrow=c(2,1))
+
 grViz(dotFilename)
 
+ 
 ```
 
 ##Check solution robustness with drop one approach
@@ -921,7 +891,7 @@ colnames(droponesummary)[4]<-'z.all'
 droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
 #Use'drop one' approach - reduce the dataset by one on each run
 #
-mycols<-nrow(summary(model7Fit)$parameters)
+mycols<-nrow(summary(Model7Fit)$parameters)
 PT_summary<-matrix(NA,ncol=mycols, nrow=myrow) #initialise matrix to gather estimates for each of the parameters for each of 30 runs
 
  for (thisdrop in 1:myrow){
@@ -952,24 +922,6 @@ write.table(droponesummary, 'dropone_z', sep="\t",quote=F)
 t(droponesummary) #display transposed
 ```
 
-##Look at data for row 23
-Further exploratory analyses were conducted to gain insight into why row 23 data had a large effect on the solution
-
-```{r checkindividuals}
-
-#Add handedness data
-
-alltask$hand<-2
-if(RHonly==0){
-w<- which(particdat$handedness=='R')
-alltask$hand[w]<-1
-}
-
-meanSentGen<-rowMeans(alltask[,c(4,10)],na.rm=F)
-meanJabberwocky<-rowMeans(alltask[,c(6,12)],na.rm=T)
-plot(meanSentGen,meanJabberwocky,col=alltask$hand,pch=15)
-text(-2.5,2,'Row 23')
-```
 
 ##Make factor scores and plot them
 In a further exploratory analysis, we plotted factor scores by making a weighted sum of scores, using factor loadings as weights.
@@ -979,25 +931,38 @@ This shows that although the factors are modeled to be independent, they are hig
 #? Use loadings or zscores?
 #This is with loadings - but it makes little difference
 #In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
-allz1<-c(1,mysummary$Estimate[1:5])
-allz2<-c(0,mysummary$Estimate[6:10]) #1st and 6th values for task A
+allz1<-c(1,mysummary$z[1:5])
+allz2<-c(0,mysummary$z[6:10]) #1st and 6th values for task A
 for (i in 1:nrow(alltask)){
 alltask$f1score[i]<-alltaskall[i,1]*allz1[1]+
   alltaskall[i,2]*allz1[2]+
   alltaskall[i,3]*allz1[3]+
   alltaskall[i,4]*allz1[4]+
   alltaskall[i,5]*allz1[5]+
-  alltaskall[i,6]*allz1[6]
+  alltaskall[i,6]*allz1[6]+
+  alltaskall[i,7]*allz1[1]+
+  alltaskall[i,8]*allz1[2]+
+  alltaskall[i,9]*allz1[3]+
+  alltaskall[i,10]*allz1[4]+
+  alltaskall[i,11]*allz1[5]+
+  alltaskall[i,12]*allz1[6]
+  
 alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
   alltaskall[i,2]*allz2[2]+
   alltaskall[i,3]*allz2[3]+
   alltaskall[i,4]*allz2[4]+
   alltaskall[i,5]*allz2[5]+
-  alltaskall[i,6]*allz2[6]
+  alltaskall[i,6]*allz2[6]+
+  alltaskall[i,7]*allz2[1]+
+  alltaskall[i,8]*allz2[2]+
+  alltaskall[i,9]*allz2[3]+
+  alltaskall[i,10]*allz2[4]+
+  alltaskall[i,11]*allz2[5]+
+  alltaskall[i,12]*allz2[6]
 }
 
 
-plot(alltask$f1score,alltask$f2score,col=alltask$hand,pch=15)
+plot(alltask$f1score,alltask$f2score,pch=15)
 abline(v=0,lty=2)
 abline(h=0,lty=2)
 cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
@@ -1014,7 +979,7 @@ It confirms that there are particular problems with estimates of paths from Jabb
   # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
  n=myrow
- real_est<-summary.model7$parameters$Estimate #estimate with all cases included
+ real_est<-summary.Model7$parameters$Estimate #estimate with all cases included
  #PT_summary
  PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
  JK_bias<-(n-1)*(PT_means-real_est) 
@@ -1027,14 +992,15 @@ It confirms that there are particular problems with estimates of paths from Jabb
  # calculates the Jackknife SE estimates to allow us to calculate the CI.
  
  #PT_summary
- Jack_SE<-vector(mode="numeric",length=(myrow-1))
- for (i in 1:(myrow-1))
+ mycol<-length(summary.Model7$parameters$Estimate)
+ Jack_SE<-vector(mode="numeric",length=mycol)
+ for (i in 1:(mycol))
  {
  Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
  }
- myres<-summary.model7$parameters[,1:6]
- myres$L_ci<-round(summary.model7$parameters$Estimate-1.65*summary.model7$parameters$Std.Error,2)
- myres$U_ci<-round(summary.model7$parameters$Estimate+1.65*summary.model7$parameters$Std.Error,2)
+ myres<-summary.Model7$parameters[,1:6]
+ myres$L_ci<-round(summary.Model7$parameters$Estimate-1.65*summary.Model7$parameters$Std.Error,2)
+ myres$U_ci<-round(summary.Model7$parameters$Estimate+1.65*summary.Model7$parameters$Std.Error,2)
  myres$Jack_Estimate<-round(Jack_est,2)
  myres$Jack_Std.Error<-round(Jack_SE,2)
  myres$JK_L_ci<-round(Jack_est-1.65*Jack_SE,2)
