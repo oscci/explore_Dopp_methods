@@ -49,7 +49,7 @@ library('devtools')
 library("reshape2")
 library("yarrr")
 
-setwd("C:/Users/zwoodhead/Dropbox/Project A2/A2_Data")
+#setwd("C:/Users/zwoodhead/Dropbox/Project A2/A2_Data")
 
 ```
 ##Code for setting directory flexibly
@@ -795,24 +795,24 @@ resVars      <- mxPath( from=mylabels, arrows=2,
                         free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
                         labels=c("e1","e2","e3","e4","e5","e6","e11","e12","e13","e14","e15","e16") )
 
-myModel8 <- mxModel("BiFactor Modelb", type="RAM",
+mymodel7 <- mxModel("BiFactor Modelb", type="RAM",
                           manifestVars=mylabels,
                           latentVars=c("Factor1","Factor2"),
                           dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
 
-Model8Fit <- mxRun(myModel8)
-summary.Model8<-summary(Model8Fit, refModels=mxRefModels(Model8Fit, run = TRUE)) 
+model7Fit <- mxRun(mymodel7)
+summary.model7<-summary(model7Fit, refModels=mxRefModels(model7Fit, run = TRUE)) 
 
 #to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
 
-test.8.7<-mxCompare(Model8Fit,Model7Fit)
-summary.Model8$Chi<-test.8.7$diffLL[2]
-summary.Model8$ChiDoF<-test.8.7$diffdf[2]
-summary.Model8$p<-test.8.7$p[2]
+test.8.7<-mxCompare(model7Fit,Model7Fit)
+summary.model7$Chi<-test.8.7$diffLL[2]
+summary.model7$ChiDoF<-test.8.7$diffdf[2]
+summary.model7$p<-test.8.7$p[2]
 mycomp<-'Model 7'
 thiscomment<-'Bifactor, vars differ by session'
 thisrowname<-'8.Task x Person Effect, free vars'
-bigsummary<-addbig(summary.Model8,mycomp,thiscomment,thisrowname) 
+bigsummary<-addbig(summary.model7,mycomp,thiscomment,thisrowname) 
 
 pmessage<-'Bi-factor Modelb does not improve fit over one factor Model'
 
@@ -921,7 +921,8 @@ colnames(droponesummary)[4]<-'z.all'
 droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
 #Use'drop one' approach - reduce the dataset by one on each run
 #
-PT_summary<-matrix(NA,ncol=29, nrow=myrow) #initialise matrix to gather estimates for each of 29 parameters for each of 30 runs
+mycols<-nrow(summary(model7Fit)$parameters)
+PT_summary<-matrix(NA,ncol=mycols, nrow=myrow) #initialise matrix to gather estimates for each of the parameters for each of 30 runs
 
  for (thisdrop in 1:myrow){
    dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
@@ -929,15 +930,15 @@ PT_summary<-matrix(NA,ncol=29, nrow=myrow) #initialise matrix to gather estimate
     #keep all other parameters same as last model
 resVars      <- mxPath( from=mylabels, arrows=2,
                         free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
-                        labels=c("e1","e2","e3","e4","e5","e6","e11","e12","e13","e14","e15","e16") )
+                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
 
-myModel8 <- mxModel("BiFactor Modelb", type="RAM",
+mymodel7 <- mxModel("BiFactor Modelb", type="RAM",
                           manifestVars=mylabels,
                           latentVars=c("Factor1","Factor2"),
                           dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
 
-Model8Fit <- mxRun(myModel8)
-thissummary<-summary(Model8Fit)
+model7Fit <- mxRun(mymodel7)
+thissummary<-summary(model7Fit)
 
 PT_summary[thisdrop,]<-thissummary$parameters$Estimate
 
@@ -1013,7 +1014,7 @@ It confirms that there are particular problems with estimates of paths from Jabb
   # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
  n=myrow
- real_est<-summary.Model8$parameters$Estimate #estimate with all cases included
+ real_est<-summary.model7$parameters$Estimate #estimate with all cases included
  #PT_summary
  PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
  JK_bias<-(n-1)*(PT_means-real_est) 
@@ -1031,9 +1032,9 @@ It confirms that there are particular problems with estimates of paths from Jabb
  {
  Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
  }
- myres<-summary.Model8$parameters[,1:6]
- myres$L_ci<-round(summary.Model8$parameters$Estimate-1.65*summary.Model8$parameters$Std.Error,2)
- myres$U_ci<-round(summary.Model8$parameters$Estimate+1.65*summary.Model8$parameters$Std.Error,2)
+ myres<-summary.model7$parameters[,1:6]
+ myres$L_ci<-round(summary.model7$parameters$Estimate-1.65*summary.model7$parameters$Std.Error,2)
+ myres$U_ci<-round(summary.model7$parameters$Estimate+1.65*summary.model7$parameters$Std.Error,2)
  myres$Jack_Estimate<-round(Jack_est,2)
  myres$Jack_Std.Error<-round(Jack_SE,2)
  myres$JK_L_ci<-round(Jack_est-1.65*Jack_SE,2)
