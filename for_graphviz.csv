@@ -22,4 +22,5 @@ digraph 'Two Factor Model' {
 "      X2 -> D[dir=forward,fontname='Arial', fontsize=12,label=xx];"
 "      X2 -> E[dir=forward,fontname='Arial', fontsize=12,label=xx];"
 "      X2 -> F[dir=forward,fontname='Arial', fontsize=12,label=xx];"
+"label=""Graph"";"
 }
