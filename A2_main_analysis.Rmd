@@ -230,10 +230,14 @@ print(paste('Dropped because < 12 trials, N = ',dropN))
 ```{r reordertasks}
 #Reassuring that reordering variables does not affect model fit
 #However, it does affect the model structure.
+#The first variable in the list will have fixed paths to factor A (1) and B (0)
 tryreorder<-1
 if (tryreorder==1){
   nuorder<-c(4,1,2,3,5,6,10,7,8,9,11,12)
  # nuorder<-c(6,1,2,3,4,5,12,7,8,9,10,11)
+ # nuorder<-c(2,1,3,4,5,6,8,7,9,10,11,12)
+  # nuorder<-c(3,1,2,4,5,6,9,7,8,10,11,12)
+  #nuorder<-c(5,1,2,3,4,6,11,7,8,9,10,12)
 alltask<-alltask[,nuorder]
 alltaskall<-alltaskall[,nuorder]
 mylabels<-mylabels[nuorder]
@@ -925,10 +929,11 @@ t(droponesummary) #display transposed
 
 ##Make factor scores and plot them
 In a further exploratory analysis, we plotted factor scores by making a weighted sum of scores, using factor loadings as weights.
-This shows that although the factors are modeled to be independent, they are highly intercorrelated. Handedness is colour coded. Inspection of this figure suggests that left- and right-handers should be modeled separately. Indeed, if this script is rerun with right-handers only, then single factor model gives best solution.
+This shows that although the factors are modeled to be independent, they are highly intercorrelated. 
 
 ```{r makefacscores}
 #? Use loadings or zscores?
+#(Nb updated 28/8/18 to include measures from both time points)
 #This is with loadings - but it makes little difference
 #In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
 allz1<-c(1,mysummary$z[1:5])
@@ -965,8 +970,8 @@ alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
 plot(alltask$f1score,alltask$f2score,pch=15)
 abline(v=0,lty=2)
 abline(h=0,lty=2)
-cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs')
-
+mycor<-round(cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs'),3)
+text(-20,15,paste('r = ',mycor))
 ```
 
 ##Jacknife estimates of path SEs
