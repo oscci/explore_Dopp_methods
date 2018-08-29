@@ -48,6 +48,11 @@ require(data.table)
 library('devtools')
 library("reshape2")
 library("yarrr")
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(magrittr)
+library(svglite)
+library(rsvg)
 
 #setwd("C:/Users/zwoodhead/Dropbox/Project A2/A2_Data")
 
@@ -150,6 +155,8 @@ alltaskall <- cbind(select(data1,A1.LI_mean,B1.LI_mean,C1.LI_mean,D1.LI_mean,E1.
 }
 mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
             'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
+myshortlab<-c('ListGen','PhonDec','SemDec','SentGen','SentComp','Jabber')
+myfixed<-myshortlab[1]
 colnames(alltaskall)<-mylabels
 head(alltaskall)
 if (RHonly==1){
@@ -233,14 +240,15 @@ print(paste('Dropped because < 12 trials, N = ',dropN))
 #The first variable in the list will have fixed paths to factor A (1) and B (0)
 tryreorder<-1
 if (tryreorder==1){
-  nuorder<-c(4,1,2,3,5,6,10,7,8,9,11,12)
- # nuorder<-c(6,1,2,3,4,5,12,7,8,9,10,11)
- # nuorder<-c(2,1,3,4,5,6,8,7,9,10,11,12)
-  # nuorder<-c(3,1,2,4,5,6,9,7,8,10,11,12)
+ #nuorder<-c(4,1,2,3,5,6,10,7,8,9,11,12)
+  #nuorder<-c(6,1,2,3,4,5,12,7,8,9,10,11)
+  #nuorder<-c(2,1,3,4,5,6,8,7,9,10,11,12)
+   nuorder<-c(3,1,2,4,5,6,9,7,8,10,11,12)
   #nuorder<-c(5,1,2,3,4,6,11,7,8,9,10,12)
 alltask<-alltask[,nuorder]
 alltaskall<-alltaskall[,nuorder]
 mylabels<-mylabels[nuorder]
+myshortlab<-myshortlab[nuorder]
 }
 ```
 ##Show means etc for tasks with time1 and time2 adjacent
@@ -776,13 +784,88 @@ bigsummary
 Better fit for bifactor than for single factor, though CFI is still below accepted value for good fit. 
 To explore reasons for poor fit, can look at differences between expected and observed covariances.
 
-## Explore reasons for poor fit
+
+## Drop NS paths from bifactor
+```{r pathdrop}
+npaths<-length(mylabels)-2
+nvars<-length(mylabels)/2
+mypaths<-summary(Model7Fit)$parameters$Estimate[1:npaths]
+mySEs<-summary(Model7Fit)$parameters$Std.Error[1:npaths]
+myzs<-mypaths/mySEs
+myzs<-c(3,myzs[1:(npaths/2)],3,myzs[((1+npaths/2):npaths)])
+#insert dummy value of 3 for the fixed paths to insure pth index is correct
+w1<-which(myzs[1:nvars]<1.65) #paths to Factor1
+w2<-which(myzs[(1+nvars):(2*nvars)]<1.65) #paths to Factor2
+
+myfreef1<-c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE)
+myfreef2<-c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE)
+
+myvalsf1<-rep(1,12)
+myvalsf2<-c(0,rep(1,5),0,rep(1,5))
+
+mylabsf1<-c("k1","k2","k3","k4","k5","k6","k1","k2","k3","k4","k5","k6") 
+mylabsf2<-c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") 
+
+if(length(w1)>0){
+  myfreef1[w1]<-FALSE
+  myvalsf1[w1]<-0
+ myfreef1<-rep(myfreef1[1:nvars],2)
+   myvalsf1<-rep(myvalsf1[1:nvars],2)
+}
+if(length(w2)>0){
+  myfreef2[w2]<-FALSE
+  myvalsf2[w2]<-0
+  myfreef2<-rep(myfreef2[1:nvars],2)
+   myvalsf2<-rep(myvalsf2[1:nvars],2)
+}
+
+# change factor loadings accordingly
+facLoadsFactor1     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                               free=myfreef1, 
+                               values=myvalsf1,
+                               labels =mylabsf1)
+
+# factor loadings for Factor2 #NB test A loading is fixed to zero for this factor
+facLoadsFactor2     <- mxPath( from="Factor2", to=mylabels, arrows=1,
+                               free=myfreef2, 
+                               values=myvalsf2,
+                               labels =mylabsf2) 
+
+
+myModel7drop <- mxModel("BiFactor Model drop", type="RAM",
+                          manifestVars=mylabels,
+                          latentVars=c("Factor1","Factor2"),
+                          dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
+
+Model7dropFit <- mxRun(myModel7drop)
+
+summary.Model7drop<-summary(Model7dropFit, refModels=mxRefModels(Model7dropFit, run = TRUE)) 
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+
+test.7d.7<-mxCompare(Model7Fit,Model7dropFit)
+summary.Model7drop$Chi<-test.7d.7$diffLL[2]
+summary.Model7drop$ChiDoF<-test.7d.7$diffdf[2]
+summary.Model7drop$p<-test.7d.7$p[2]
+mycomp<-'Model 7'
+thiscomment<-'Covariances: bifactor dropns'
+thisrowname<-'7.Task x Person Effect drop ns'
+bigsummary<-addbig(summary.Model7drop,mycomp,thiscomment,thisrowname) 
+```
+## All subsequent analyses explore characteristic of a specific model, which should be specified here
+
+```{r selectmodel}
+thissummary<-summary.Model7drop
+thisfit<-Model7dropFit
+thismodel<-myModel7drop
+```
+## Explore covariance matrix vs expected
 We can extract the observed covariance matrix and compare it with the expected values from the current Model. If we take the difference between these, we can identify whether there are particular covariances that are problematic.
 ```{r covexplorefunction}
 covexplore<-function(ModelFit,mytitle){
 
 mymat.e<-mxGetExpected(ModelFit,"covariance")
-mymat.o <- cov(alltask,use="pairwise.complete.obs")
+mymat.o <- cov(alltask[,1:12],use="pairwise.complete.obs")
 mymat.d<-abs(mymat.e-mymat.o) #absolute size of mismatch between obs and expected
 mymat.d1<-mymat.e-mymat.o #size of mismatch with sign
 cc<-rainbow(ncol(mymat.d1))
@@ -794,18 +877,18 @@ return(h)
 ```
 
 ```{r makeheatmap}
-covexplore(Model7Fit,'Model 7: obs/exp covariance diffs')
+covexplore(thisfit,'Model 7drop: obs/exp covariance diffs')
+
 ```
 
-Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). Note the heat map show dark pink on the diagonal for SentGen1 and ListGen1. This means that the observed variance for these measures is lower than the Model predicts. The corresponding diagonal blocks for SentGen2 and PhonDec1 are blue: this is because we have set the estimated variances for the time 1 and time 2 tests to be the same (so based on average); so if observed value at one time is higher than the estimate, the estimate for the other time will be lower. 
+Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). 
 
 
-Next chunk just redoes the heatmap for the new Model. Note that the colours are scaled so we still see some strong colours, regardless of absolute values of differences. The darker colours don't form any coherent pattern, so there is no justification for further tweaks of the model.
 
 
 
 ## Draw simplified path diagram
-Draw diagram of the bi-factor Model 7, with nonsignificant paths omitted.
+Draw diagram of the selected model, with nonsignificant paths omitted.
 The criterion for a non-significant path is currently set to z = 1.65, but it is rather arbitrary, and the picture will look different depending on how stringent you make it.
 N.B. The file for_graphviz is set up in advance and read in and modified according to results. For this part of the script to work you must have the file 'for_graphviz.csv' in your working directory.
 
@@ -818,19 +901,39 @@ NB If this figure is published, need to make following points:
 * This is simplified path diagram. It shows just one measure per variable, when in fact there were two, and it does not show means, though these were estimated.
 
 * Also nonsignificant paths are omitted.
+
+
+```{r insertblanks}
+#For graphviz to work as set up, and when running jacknife, need to add dummy rows for dropped paths
+
+insertblanks<-function(thissummary){
+
+ms<-which(thissummary$parameters$matrix=='A')
+startsummary<-thissummary$parameters[ms,c(1,3:6)]
+startsummary$z<-startsummary$Estimate/startsummary$Std.Error
+
+namelist<-thissummary$parameters$name[ms]
+fullnamelist<-c('k2','k3','k4','k5','k6','l2','l3','l4','l5','l6')
+w<-which(fullnamelist %in% namelist) 
+
+mysummary<-data.frame(matrix(NA,nrow=length(fullnamelist),ncol=dim(startsummary)))#create a clone 
+colnames(mysummary)<-colnames(startsummary)
+mysummary$name<-fullnamelist
+mysummary$z<-0 #initialise with zero
+for (i in 1:length(w)){
+  mysummary[w[i],]<-startsummary[i,]
+}
+return(mysummary)
+}
+```
+
 ```{r drawpaths}
 require(stringr)
-
-mysummary<-summary.Model7$parameters[1:10,c(1,3:6)]
-#With Rhanders model 7 is best fit anyhow, so next bit is irrelevant
-# if (usemean==0){
-#   mysummary<-summary.Model7$parameters[1:10,c(1,3:6)] #model 7 is best fit for peak values
-# }
-mysummary$z<-mysummary$Estimate/mysummary$Std.Error
 # omxGraphviz(biFactorModel, dotFilename = "bifactor.dot")
 # grViz("bifactor.dot") #this will generate a .dot file but it
 # is messy, as it shows time 1 and time 2 measures, as well as means
 
+thatsummary<-insertblanks(thissummary)
 # Script below shows time1/time2 combined and omits means for clarity
 mybit<-read.csv('for_graphviz.csv',stringsAsFactors = FALSE,header=FALSE) #full list of all paths.
 mybit2<-print.data.frame(mybit, 
@@ -846,10 +949,10 @@ for (i in 1:6){ #each task
 
     if(i>1){ #measure A is fixed so not in the table
       thatrow<-thatrow+1
-    if(mysummary$z[thatrow]<1.65)
+    if(thatsummary$z[thatrow]<1.65)
     {mybit2[thisrow,]<-''} #delete this one
     else{
-      pathlabel<-round(mysummary$Estimate[thatrow],2)
+      pathlabel<-round(thatsummary$Estimate[thatrow],2)
       bb<-mybit2[thisrow,]
       bb<-str_replace(bb,'xx',as.character(pathlabel))
       mybit2[thisrow,]<-bb
@@ -858,7 +961,7 @@ for (i in 1:6){ #each task
   }
 }
 mybit2[19,]<-'' #delete path for A to X2: this one was fixed to 0
-graphname<-paste0('Order_',colnames(alltask)[1],colnames(alltask)[2],colnames(alltask)[3],colnames(alltask)[4],colnames(alltask)[5],colnames(alltask)[6])
+graphname<-paste0(colnames(alltask)[1],'_',colnames(alltask)[2],'_',colnames(alltask)[3],'_',colnames(alltask)[4],'_',colnames(alltask)[5],'_',colnames(alltask)[6])
 mybit2[25,]<-paste("label=",graphname,";")
 
 dotFilename<-'dottry.dot'
@@ -870,9 +973,10 @@ if(usemean==0){
 write.table(mybit2, dotFilename, append = FALSE,
             row.names = FALSE, col.names = FALSE,quote=FALSE)
 
-par(mfrow=c(2,1))
-
 grViz(dotFilename)
+# pathplot<-DiagrammeR::grViz(dotFilename)
+# pathplotname<-paste0('pathplot_fix_',myfixed,'.png')
+# pathplot %>% export_svg %>% charToRaw %>% rsvg_png(pathplotname)
 
  
 ```
@@ -889,39 +993,39 @@ This is problematic: suggests bifactor pattern of results depends on inclusion o
 do.dropone<-1
 if (do.dropone==1){
 #First create dataframe to save the results
-droponesummary <- mysummary[,c(1:3,6)]
-droponesummary$z<-round(droponesummary$z,2)
-colnames(droponesummary)[4]<-'z.all'
-droponesummary$row<-c('B','C','D','E','F','B','C','D','E','F')
+droponesummary<-insertblanks(thissummary)
+nest<-1:(nrow(droponesummary)/2) #range for ests for F1
+nest2<-length(nest)+nest #range for ests for F2
+droponesummary$row<-rep(myshortlab[1+nest],2)
+droponesummary$col[nest]<-'Factor1'
+droponesummary$col[nest2]<-'Factor2'
 #Use'drop one' approach - reduce the dataset by one on each run
 #
-mycols<-nrow(summary(Model7Fit)$parameters)
+mycols<-nrow(summary(thisfit)$parameters)
 PT_summary<-matrix(NA,ncol=mycols, nrow=myrow) #initialise matrix to gather estimates for each of the parameters for each of 30 runs
 
  for (thisdrop in 1:myrow){
    dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
  
-    #keep all other parameters same as last model
-resVars      <- mxPath( from=mylabels, arrows=2,
-                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
-                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
+    #keep all other parameters same as last model that was run
 
-mymodel7 <- mxModel("BiFactor Modelb", type="RAM",
+ thismodel<- mxModel("BiFactor Model", type="RAM",
                           manifestVars=mylabels,
                           latentVars=c("Factor1","Factor2"),
                           dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
+currentFit <- mxRun(thismodel)
+droppedsummary<-summary(currentFit)
 
-model7Fit <- mxRun(mymodel7)
-thissummary<-summary(model7Fit)
+PT_summary[thisdrop,]<-droppedsummary$parameters$Estimate #nb all estimates - not just paths
 
-PT_summary[thisdrop,]<-thissummary$parameters$Estimate
-
-temp<-thissummary$parameters[1:10,c(1,3:6)]
+temp<-insertblanks(droppedsummary) #use previously defined function to give null values for dropped paths
 nucol<-ncol(droponesummary)+1
-droponesummary[,nucol]<-round(temp$Estimate/temp$Std.Error,2)
+droponesummary[,nucol]<-round(temp$z,2)
 colnames(droponesummary)[nucol]<-paste0('z.',thisdrop)
  }
-write.table(droponesummary, 'dropone_z', sep="\t",quote=F) 
+myfixed<-myshortlab[1]
+dropname<-paste0('dropone_z_',myfixed,'.txt')
+write.table(t(droponesummary), dropname, sep="\t",quote=F) 
 }
 t(droponesummary) #display transposed
 ```
@@ -936,8 +1040,8 @@ This shows that although the factors are modeled to be independent, they are hig
 #(Nb updated 28/8/18 to include measures from both time points)
 #This is with loadings - but it makes little difference
 #In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
-allz1<-c(1,mysummary$z[1:5])
-allz2<-c(0,mysummary$z[6:10]) #1st and 6th values for task A
+allz1<-c(1,thatsummary$z[1:5])
+allz2<-c(0,thatsummary$z[6:10]) #1st and 6th values for task A
 for (i in 1:nrow(alltask)){
 alltask$f1score[i]<-alltaskall[i,1]*allz1[1]+
   alltaskall[i,2]*allz1[2]+
@@ -966,12 +1070,14 @@ alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
   alltaskall[i,12]*allz2[6]
 }
 
-
+pngname<-paste0('factorplot_fix',myfixed,'.png')
+png(pngname, width=4, height=4, units="in", res=300)
 plot(alltask$f1score,alltask$f2score,pch=15)
 abline(v=0,lty=2)
 abline(h=0,lty=2)
 mycor<-round(cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs'),3)
 text(-20,15,paste('r = ',mycor))
+dev.off()
 ```
 
 ##Jacknife estimates of path SEs
@@ -984,28 +1090,30 @@ It confirms that there are particular problems with estimates of paths from Jabb
   # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
  n=myrow
- real_est<-summary.Model7$parameters$Estimate #estimate with all cases included
+ real_est<-thissummary$parameters$Estimate #estimate with all cases included
  #PT_summary
  PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
  JK_bias<-(n-1)*(PT_means-real_est) 
  
  Jack_est<-(n*real_est)-((n-1)*PT_means)
+pngname<-paste0('jacknifeplot_fix',myfixed,'.png')
+png(pngname, width=4, height=4, units="in", res=300)
 
  plot(real_est,Jack_est)
- 
+ dev.off()
  
  # calculates the Jackknife SE estimates to allow us to calculate the CI.
  
  #PT_summary
- mycol<-length(summary.Model7$parameters$Estimate)
+ mycol<-length(thissummary$parameters$Estimate)
  Jack_SE<-vector(mode="numeric",length=mycol)
  for (i in 1:(mycol))
  {
  Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
  }
- myres<-summary.Model7$parameters[,1:6]
- myres$L_ci<-round(summary.Model7$parameters$Estimate-1.65*summary.Model7$parameters$Std.Error,2)
- myres$U_ci<-round(summary.Model7$parameters$Estimate+1.65*summary.Model7$parameters$Std.Error,2)
+ myres<-thissummary$parameters[,1:6]
+ myres$L_ci<-round(thissummary$parameters$Estimate-1.65*thissummary$parameters$Std.Error,2)
+ myres$U_ci<-round(thissummary$parameters$Estimate+1.65*thissummary$parameters$Std.Error,2)
  myres$Jack_Estimate<-round(Jack_est,2)
  myres$Jack_Std.Error<-round(Jack_SE,2)
  myres$JK_L_ci<-round(Jack_est-1.65*Jack_SE,2)
@@ -1019,7 +1127,8 @@ It confirms that there are particular problems with estimates of paths from Jabb
 ```
 
 ```{r compare_baselines}
-
+baselinecomp<-0
+if(baselinecomp==1){
 olddir<-"~/Dropbox/Project A2/A2_Data/original_baseline/"
 oldbase1<-read.csv(paste0(olddir,'Results_Session1_baseline_-5_0.csv'))
 oldbase2<-read.csv(paste0(olddir,'Results_Session2_baseline_-5_0.csv'))
@@ -1040,7 +1149,11 @@ colnames(newold)<-c('new baseline se','old baseline se')
 plot(newold[,2],newold[,1],xlab='Old baseline (-5 to 0 s)',ylab='New baseline (-5 to 2 s)')
 abline(coef=c(0,1))
 dev.off()
+}
+```
 
+```{R writebigsummary}
+ write.table(bigsummary,paste0('bigsummary_fixed_',myfixed,'.txt'), sep="\t",row.names=FALSE,quote=FALSE)
 ```
 
 ##Session information
