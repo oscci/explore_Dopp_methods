@@ -48,7 +48,6 @@ require(data.table)
 library('devtools')
 library("reshape2")
 library("yarrr")
-library(DiagrammeR)
 library(DiagrammeRsvg)
 library(magrittr)
 library(svglite)
@@ -71,9 +70,9 @@ run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
 run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
 
 nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
-  c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
+# c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
 # c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
-# c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+ c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
 # c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
 # c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
 
@@ -185,6 +184,7 @@ alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
              select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
 
 if(usemean==1){ #See usemean toggle
+  alltaskpeak <- alltaskall # Keep peak values for comparison
   alltaskall <- cbind(select(data1,A1.LI_mean,B1.LI_mean,C1.LI_mean,D1.LI_mean,E1.LI_mean,F1.LI_mean),
                       select(data2,A2.LI_mean,B2.LI_mean,C2.LI_mean,D2.LI_mean,E2.LI_mean,F2.LI_mean))
 }
@@ -193,13 +193,16 @@ mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
             'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
 myshortlab<-c('ListGen','PhonDec','SemDec','SentGen','SentComp','Jabber')
 
-myfixed<-myshortlab[1] ### Keep an eye on this......
+myfixed<-myshortlab[nuorder[1]] ### Keep an eye on this......
 
 colnames(alltaskall)<-mylabels
 head(alltaskall)
 
 if (RHonly==1){
   alltaskall<-alltaskall[rhanded,]
+  if (usemean == 1){
+    alltaskpeak <- alltaskpeak[rhanded,]
+  }
 }
 
 ```
@@ -276,6 +279,20 @@ if (remove.Ntrial==1){ #See remove.Ntrial toggle
 }
 
 ```
+##Check correlation with peak LI values
+```{r peakcorr}
+if (usemean == 1){ # Only runs if we're using mean values for LI
+  allmeanLI <- numeric(0)
+  allpeakLI <- numeric(0)
+  for (i in 1:dim(alltask)[2]){
+    allmeanLI <- c(allmeanLI, alltask[ ,i])
+    allpeakLI <- c(allpeakLI, alltaskpeak[,i])
+  }
+  cor(allmeanLI, allpeakLI, use='pairwise.complete.obs', method='spearman') #Option: can switch method to 'spearman' or 'pearson'
+  
+}
+```
+
 
 ##Try with different order of variables
 
