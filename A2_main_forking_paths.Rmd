@@ -1,7 +1,7 @@
 ---
 title: "Analysis for A2 writeup"
 author: "Dorothy Bishop/ Zoe Woodhead / Paul Thompson"
-date: "28 Jul 2018"
+date: "29 Sep 2018"
 output:
   word_document: default
   pdf_document: default
@@ -31,6 +31,8 @@ This value decreases with more DF (greater parsimony) or larger sample size.
 Comparative fit index (CFI) measures relative improvement in fit of Model over baseline Model. 
 Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CFI > .95 (see Kline p 208)
 
+N.B. This version of script allows options in terms of which participants are included and which measure of LI is used. Values from the selected analysis are inserted into a Results section (see end of script). This allows for alternative approaches to be compared in Appendix.
+
 ##Chunks of code for setting packages and reading in data 
 from SEM2_maxLikelihood_realdata.R
 ```{r packages, warning=FALSE, message=FALSE}
@@ -57,6 +59,8 @@ library(knitr)
 ########### Set toggles before running! ################################################################
 RHonly            <- 0 # Set to 0 if want to include L handers
 Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
+#removesubs       <- c(10,22,26,28) #specific IDs to remove; set to zero to remove none
+removesubs        <- 0
 run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group
 run_behavioural   <- 1 # Set to 1 to analyse behavioural data
 usemean           <- 1 # Set to 0 to analyse original peak-based LI values
@@ -72,12 +76,13 @@ run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
 run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
 
 nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
-  c(1,2,3,4,5,6,7,8,9,10,11,12)
+ # c(1,2,3,4,5,6,7,8,9,10,11,12)
 # c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
 # c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
-# c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+ c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
 # c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
 # c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
+
 
 ########################################################################################################
 
@@ -85,7 +90,7 @@ nuorder           <-   # Sets the new order of tasks. The task listed first (and
 ##Code for setting directory flexibly
 ```{r definedir}
 #This not currently used but should be easy to adapt if needed. 
-#recommend just setting working directory to current folder where files reside
+#Script currently assumes working directory is already set to current folder where files reside
 thisuser <-'dorothybishop'
 thisdrive<- '' #may need to set this to 'C:' for PC users
 #readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/project A2/')
@@ -99,6 +104,7 @@ particdat<-read.csv('A2_Participant_Info.csv')
 rhanded<-which(particdat$handedness=='R')
 particdat$handcode<-2
 particdat$handcode[rhanded]<-1
+#Handcode needed when numeric value used for colour in plots
 
 
 if (Init30only==1) {# original sample from prereg analysis
@@ -108,9 +114,11 @@ if (Init30only==1) {# original sample from prereg analysis
 
 if (RHonly==1){ #See RHonly toggle
   print('R handers only included in analysis')
-  particdat <- particdat[rhanded,]
+  particdat <- filter(particdat,handedness=='R')
 }
-
+if (removesubs>0){
+particdat<-particdat[-removesubs,] #NB defined by row number, NOT subject ID
+}
 if(run_participants==1){ #See run_participants toggle
   #Participant descriptors reported in paper
   print('Gender x handedness')
@@ -130,16 +138,10 @@ if(run_participants==1){ #See run_participants toggle
 if (run_behavioural==1){ #See run_behavioural toggle
   
   behavdat<-read.csv('A2_Behavioural_Data.csv')
-  behavdat<-behavdat[particdat$ID,]
+  behavdat<-behavdat[particdat$ID,] #need to remove one S who is in this file but not tested
   
-  if (Init30only==1) {# original sample from prereg analysis
-  print('First 30 subjects only included in analysis')
-  behavdat<-behavdat[1:30,]
-  }
-  
-  if (RHonly==1){ #See RHonly toggle
-    behavdat<-behavdat[rhanded,] #remove some blank lines at end of file
-  }
+ #NB Do not need to specify exclusions by sample or handedness here.
+  #Participant ID has already incorporated there
   
   #word data
   word.cols<-grep('*.Words',colnames(behavdat))
@@ -159,9 +161,9 @@ if (run_behavioural==1){ #See run_behavioural toggle
   omit.cols<-grep('*.Omit',colnames(behavdat))
   print('Omit')
   stargazer(behavdat[,omit.cols],type='text')
-  
-  
-  
+ 
+  #Table now just includes tasks with % accurate and RT.
+  #N words from tasks A and D are reported in main text
   
   #make data frame to hold data formatted for paper
   behavdf<-data.frame(matrix(NA,nrow=4,ncol=10))
@@ -177,13 +179,7 @@ if (run_behavioural==1){ #See run_behavioural toggle
     mymeano<-round(sapply(behavdat[,omit.cols],mean,na.rm=TRUE),2)
   mysdo<-round(sapply(behavdat[,omit.cols],sd,na.rm=TRUE),2)
   
-  
-    
-    
-   
-
-  
-  for (i in 1:4){
+    for (i in 1:4){
     
     behavdf[i,1]<-paste0(mymeanp[i],' (',mysdp[i],')')
     behavdf[i,2]<-paste0(mymeanp[(i+4)],' (',mysdp[i+4],')')
@@ -199,12 +195,14 @@ if (run_behavioural==1){ #See run_behavioural toggle
     behavdf[i,8]<-round(thist2$p.value,3)
   }
   rownames(behavdf)<-c('B','C','E','F')
+  #NB row/cols from table are transposed before outputting
   write.table(t(behavdf), "Behavtable.txt", sep="\t",row.names=TRUE,quote=FALSE) #Currently this is table 1
 }
 ```
 
 ```{r behavaov}
   #Do Anova on words for tasks A and D - need long form file
+#Output from the aov is incorporated in the text for methods
   nsub<-nrow(behavdat)
   subvec<-rep(1:nsub,4)
   wordvec<-c(behavdat$A1.Words,behavdat$A2.Words,behavdat$D1.Words,behavdat$D2.Words)
@@ -230,16 +228,7 @@ data2<-read.csv('Results_Session2.csv')
 data1<-data1[particdat$ID,]
 data2<-data2[particdat$ID,]
 
-if (Init30only==1) {# original sample from prereg analysis
-  print('First 30 subjects only included in analysis')
-  data1<-data1[1:30,]
-  data2<-data2[1:30,]
-}
-#select R handers only if desired
-if (RHonly==1){
-  data1<-data1[rhanded,]
-  data2<-data2[rhanded,]
-  }
+
 
 alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
              select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
@@ -253,8 +242,9 @@ if(usemean==1){ #See usemean toggle
 mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
             'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
 myshortlab<-c('ListGen','PhonDec','SemDec','SentGen','SentComp','Jabber')
+mylonglab <-c('List Generation','Phonological Decision','Semantic Decision',
+              'Sentence Generation','Sentence Comprehension','Syntactic Decision')
 
-myfixed<-myshortlab[nuorder[1]] ### Keep an eye on this......
 
 colnames(alltaskall)<-mylabels
 head(alltaskall)
@@ -265,7 +255,7 @@ head(alltaskall)
 
 
 ##Code for identifying exclusions and substituting NA based on SE
-Please see justification in Methods. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
+Please see justification in Methods. Outliers based on SE of LI rather than value of LI. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
 
 ```{r excludeSE}
 
@@ -285,8 +275,8 @@ if (usemean==1){ #See usemean toggle
 myse<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
         allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
 
-Q3<-quantile(myse,.75)
-Q1<-quantile(myse,.25)
+Q3<-quantile(myse,.75,na.rm=TRUE)
+Q1<-quantile(myse,.25,na.rm=TRUE)
 Qlimit<-Q3+2.2*(Q3-Q1)
 secols<-colnames(allse)
 dropSE<-0 #initialise counter
@@ -303,13 +293,12 @@ print(paste('Dropped because high SE, N = ',dropSE))
 ```
 
 ```{r excludelowtrials}
-#Now remove those with fewer than 12 trials in a condition
+#Now remove those with fewer than 12 trials in a condition - this matches prereg
 if (remove.Ntrial==1){ #See remove.Ntrial toggle
   
   nbit<-c('A1.N','B1.N','C1.N','D1.N','E1.N','F1.N')
   includesubs<-1:nrow(data1)
 
-  
   dropN<-0 #initialise counter
   for (i in 1:6){
     w<-which(colnames(data1)==nbit[i])
@@ -330,15 +319,20 @@ if (remove.Ntrial==1){ #See remove.Ntrial toggle
     }
   }
   print(paste('Dropped because < 12 trials, N = ',dropN))  
-  mynumbers<-c('no','one','two','three','four','five','six','seven','eight','nine')
+  #create text version of number to report in Results
+  mynumbers<-c('none','one','two','three','four','five','six','seven','eight','nine')
   dropNword<-mynumbers[(dropN+1)]
   dropSEword<-mynumbers[(dropSE+1)]
 }
+
+#Now count missing data from either method, ie those coded NA
  w<-which(is.na(alltask)) #this is a long vector, col1, col2 etc 
  #to find which column has NAs need to cut at nsub
  ww<-w/37
 missdata<-round((.5+ww),0) #columns with missing datapoint from either mode of exclusion
 
+#We had previously reported in text the N missing per task, but this is evident in plot so not needed
+#(Do-able in code but not easy!)
 
 ```
 ##Check correlation with peak LI values
@@ -350,32 +344,18 @@ if (usemean == 1){ # Only runs if we're using mean values for LI
     allmeanLI <- c(allmeanLI, alltask[ ,i])
     allpeakLI <- c(allpeakLI, alltaskpeak[,i])
   }
-  cor(allmeanLI, allpeakLI, use='pairwise.complete.obs', method='spearman') #Option: can switch method to 'spearman' or 'pearson'
-  
+  methodscor<-round(cor(allmeanLI, allpeakLI, use='pairwise.complete.obs', method='spearman'),3) #Option: can switch method to 'spearman' or 'pearson'
+ print(paste0('Correlation between peak and mean method for LI = ',methodscor))
 }
 ```
 
 
-##Try with different order of variables
 
-```{r reordertasks}
-#Reassuring that reordering variables does not affect model fit
-#However, it does affect the model structure.
-#The first variable in the list will have fixed paths to factor A (1) and B (0)
-
-if (tryreorder==1){ #See tryreorder toggle
-  alltask<-alltask[,nuorder] #See nuorder toggle
-  alltaskall<-alltaskall[,nuorder]
-  mylabels<-mylabels[nuorder]
-  myshortlab<-myshortlab[nuorder[1:length(myshortlab)]]
-}
-
-```
 
 ##Show means etc for tasks with time1 and time2 adjacent
 ```{r stargaze}
 
-stargazer(alltask[,c(1,7,2,8,3,9,4,10,5,11,6,12)],type='text')
+stargazer(alltask[,c(1,7,2,8,3,9,4,10,5,11,6,12)],type='text',na.rm=TRUE)
 
 ```
 
@@ -385,11 +365,15 @@ Plots will be written to the working directory, called densities 1-6
 ```{r normalcheck}
 
 if (run_normalcheck==1){ # See run_normalcheck toggle
+ shapdf<-data.frame(matrix(NA,nrow=12,ncol=3))
+  colnames(shapdf)<-c('task','session','p')
+  myrow<-0 
   for (i in 1:6){ # Loop through tasks
     # png(filename=paste0("densities_",i,".png"))
     par(mfrow=c(2,2))
     
     for (j in 1:2){ # Loop through sessions
+      myrow<-myrow+1
       offset<- 6*(j-1)
       tempdata<-alltask[,(i+offset)]
       myshap<-shapiro.test(tempdata)
@@ -399,12 +383,25 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
       ## Plot using a qqplot
       qqnorm(tempdata);qqline(tempdata, col = 2)
       text(.4,0,paste('Shapiro\np = ',round(myshap$p.value,3)))
+     shapdf[myrow,1]<-LETTERS[i]
+      shapdf[myrow,2]<-j
+      shapdf[myrow,3]<-round(myshap$p.value,3)
     }
     # dev.off()
   }
+  #Create text for Results section
+  n.nonnormal<-length(which(shapdf$p<.05))
+  n.nonnormal.text<-paste0(mynumbers[1+n.nonnormal],' of 12 conditions were')
+  if (n.nonnormal==1){
+     n.nonnormal.text<-paste0('only' ,mynumbers[1+n.nonnormal],' of 12 conditions was')
+}
 }
 ```
 ##Pirateplot
+This needs redoing!
+Ideally should code handedness as well as excluded points
+(Not sure how to do that!)
+NB current version does plot excluded points but does not distinguish them
 
 ```{r dopirate}
 myrow<-nrow(alltask)
@@ -418,7 +415,7 @@ if (run_pirate == 1){ # See run_pirate toggle
   
   for (j in 1:12){
     i<-ilist[j]
-    myt<-t.test(alltask[,i])
+    myt<-t.test(alltask[,i],alternative='greater')
     tdf[j,1]<-round(myt$statistic,2)
     tdf[j,2]<-round(myt$p.value,3)
     tdf[j,3]<-max(alltask[,i],na.rm=TRUE)+1
@@ -431,8 +428,8 @@ if (run_pirate == 1){ # See run_pirate toggle
   
   # Melt cleverly reshapes LI_data into a long format using ID 
   # (the only factor) as the categorical variable    
-  LI_long <- melt(alltask) #version with outliers removed
-  
+  LI_long <- melt(alltaskall) #version with outliers 
+  outliermark<-is.na(alltask)
   LI_long$ID<-rep(1:myrow,6)
   LI_long$Session<-c(rep(1,myrow*6),rep(2,myrow*6))
   long_task_list <- vector() # create an empty vector
@@ -440,12 +437,16 @@ if (run_pirate == 1){ # See run_pirate toggle
     long_task_list <- c(long_task_list, rep(myshortlab[t], myrow))
   }
   LI_long$Task<- long_task_list
+  #Need task code because otherwise pirate plot will order tasks alphabetically
+  LI_long$Taskcode<-c(rep(c(rep('A',nsub),rep('B',nsub),rep('C',nsub),rep('D',nsub),
+                      rep('E',nsub),rep('F',nsub)),2))
+                      
   colnames(LI_long)[2]<-'LI'
   
  png(filename="LIpirateA2.png", width=1500, height=1200,res=300)
 
   # Make pirate plot
-  pirateplot(formula = LI ~ Session + Task,
+  pirateplot(formula = LI ~ Session + Taskcode,
              data = LI_long,
              main = "",
              ylab = "LI Value",
@@ -460,11 +461,12 @@ if (run_pirate == 1){ # See run_pirate toggle
   text(xmarker_nums, y=as.numeric(tdf[,3]), labels=tdf[,4],font=2, cex=1.3)
   
   # Mark outlier values as red dots
-  # points(outlier_markers, y=outlier_values, type = "p", pch = 16, col="red")
+ #points(outlier_markers, y=outlier_values, type = "p", pch = 16, col="red")
 
 
  dev.off()
 }
+
 
 ```
 
@@ -480,6 +482,10 @@ if (run_corrheat == 1){ # See run_corrheat toggle
   cormat<-round(cor(alltask[,ilist], use="pairwise.complete.obs", method="pearson"),2)
   rownames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
   colnames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
+  
+  #cormat values are referenced in main Results text
+  #We need test-retest range, 
+  test.retest.cor<-c(cormat[1,2],cormat[3,4],cormat[5,6],cormat[7,8],cormat[9,10],cormat[11,12])
   get_upper_tri <- function(cormat){
     cormat[lower.tri(cormat)]<- NA
     return(cormat)
@@ -562,6 +568,24 @@ addbig <- function(thissummary,mycomp,thiscomment,thisrowname) {
   rownames(bigsummary)[thisrow]<-thisrowname
   return(bigsummary)
 }
+```
+
+##Try with different order of variables
+
+```{r reordertasks}
+#Reassuring that reordering variables does not affect model fit
+#However, it does affect the model structure.
+#The first variable in the list will have fixed paths to factor A (1) and B (0)
+
+if (tryreorder==1){ #See tryreorder toggle
+  alltask<-alltask[,nuorder] #See nuorder toggle
+  alltaskall<-alltaskall[,nuorder]
+  mylabels<-mylabels[nuorder]
+  myshortlab<-myshortlab[nuorder[1:length(myshortlab)]]
+    mylonglab<-mylonglab[nuorder[1:length(mylonglab)]]
+  myfixed<-myshortlab[1]
+}
+
 ```
 
 ###Model 1: Free Means and Vars Model 
@@ -946,364 +970,237 @@ pmessage
 test.7.6
 bigsummary
 #mxCheckIdentification(myModel7, details=TRUE) # check Model identification: all OK
-
-```
-Better fit for bifactor than for single factor, though CFI is still below accepted value for good fit. 
-To explore reasons for poor fit, can look at differences between expected and observed covariances.
-
-
-
-###Drop NS paths from bifactor
-```{r pathdrop}
-if (run_pathdrop == 1){ #See run_pathdrop toggle
-  npaths<-length(mylabels)-2 # ten labels (as two paths are fixed)
-  nvars<-length(mylabels)/2  # six variables (tasks)
-  
-  # Identifies path estimates and standard errors to caclulate z scores
-  mypaths<-summary.Model7$parameters$Estimate[1:npaths]
-  mySEs<-summary.Model7$parameters$Std.Error[1:npaths]
-  myzs<-mypaths/mySEs
-  #insert dummy value of 3 for the fixed paths to insure pth index is correct (there should be 12 paths in myzs)
-  myzs<-c(3,myzs[1:(npaths/2)],3,myzs[((1+npaths/2):npaths)])
-  
-  # Identify paths where z is not significant (<1.65)
-  w1<-which(myzs[1:nvars]<1.65) #paths to Factor1
-  w2<-which(myzs[(1+nvars):(2*nvars)]<1.65) #paths to Factor2
-  
-  # Default is that all paths should be estimated (TRUE) except the fixed ones
-  myfreef1<-c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE)
-  myfreef2<-c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE)
-  
-  myvalsf1<-rep(1,12)                 # In factor 1, the values are all set to 1, but the free parameters are then estimated
-  myvalsf2<-c(0,rep(1,5),0,rep(1,5))  # In factor 2, the fixed parameters are set to 0 instead of 1
-  
-  mylabsf1<-c("k1","k2","k3","k4","k5","k6","k1","k2","k3","k4","k5","k6") 
-  mylabsf2<-c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") 
-  
-  # If there are any non-significant paths, they are removed
-  if(length(w1)>0){
-    myfreef1[w1]<-FALSE
-    myvalsf1[w1]<-0
-    myfreef1<-rep(myfreef1[1:nvars],2)
-    myvalsf1<-rep(myvalsf1[1:nvars],2)
-  }
-  
-  if(length(w2)>0){
-    myfreef2[w2]<-FALSE
-    myvalsf2[w2]<-0
-    myfreef2<-rep(myfreef2[1:nvars],2)
-    myvalsf2<-rep(myvalsf2[1:nvars],2)
-  }
-  
-  # change factor loadings accordingly
-  facLoadsFactor1     <- mxPath( from="Factor1", to=mylabels, arrows=1,
-                                 free=myfreef1, 
-                                 values=myvalsf1,
-                                 labels =mylabsf1)
-  
-  # factor loadings for Factor2 #NB test A loading is fixed to zero for this factor
-  facLoadsFactor2     <- mxPath( from="Factor2", to=mylabels, arrows=1,
-                                 free=myfreef2, 
-                                 values=myvalsf2,
-                                 labels =mylabsf2) 
-  
-  myModel7drop <- mxModel("BiFactor Model drop", type="RAM",
-                          manifestVars=mylabels,
-                          latentVars=c("Factor1","Factor2"),
-                          dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
-  
-  Model7dropFit <- mxRun(myModel7drop)
-  
-  summary.Model7drop<-summary(Model7dropFit, refModels=mxRefModels(Model7dropFit, run = TRUE)) 
-  summary.Model7drop
-  
-  #to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
-  
-  test.7d.7<-mxCompare(Model7Fit,Model7dropFit)
-  summary.Model7drop$Chi<-test.7d.7$diffLL[2]
-  summary.Model7drop$ChiDoF<-test.7d.7$diffdf[2]
-  summary.Model7drop$p<-test.7d.7$p[2]
-  mycomp<-'Model 7'
-  thiscomment<-'Covariances: bifactor dropns'
-  thisrowname<-'7.Task x Person Effect drop ns'
-  bigsummary<-addbig(summary.Model7drop,mycomp,thiscomment,thisrowname) 
-}
-
-```
-### Save bigsummary table
-```{R writebigsummary}
- write.table(bigsummary,paste0('bigsummary_fixed_',myfixed,'.txt'), sep="\t",row.names=FALSE,quote=FALSE)
+#factor loadings will be used to plot factors
+facloadings7<-c(1,summary.Model7$parameters$Estimate[1:5],0,summary.Model7$parameters$Estimate[6:10])
+#final estimate of path and SE from model 7 will be used in jacknife
+real_est_path<-summary.Model7$parameters$Estimate
+real_est_se<-summary.Model7$parameters$Std.Error
 ```
 
-##All subsequent analyses explore characteristic of a specific model, which should be specified here
-
-```{r selectmodel}
-thissummary<-summary.Model7drop
-thisfit<-Model7dropFit
-thismodel<-myModel7drop
-```
-### Explore covariance matrix vs expected
-We can extract the observed covariance matrix and compare it with the expected values from the current Model. If we take the difference between these, we can identify whether there are particular covariances that are problematic.
-```{r covexplorefunction}
-covexplore<-function(ModelFit,mytitle){
-  
-  mymat.e<-mxGetExpected(ModelFit,"covariance")
-  mymat.o <- cov(alltask[,1:12],use="pairwise.complete.obs")
-  mymat.d<-abs(mymat.e-mymat.o) #absolute size of mismatch between obs and expected
-  mymat.d1<-mymat.e-mymat.o #size of mismatch with sign
-  cc<-rainbow(ncol(mymat.d1))
-  h<-heatmap(mymat.d1,keep.dendro=FALSE,Rowv=NA,Colv=NA,
-             revC=TRUE,col = cm.colors(256),margins=c(5,5),
-             main=mytitle)
-  return(h)
-}
-```
-
-```{r makeheatmap}
-if (run_covexplore == 1){
-  covexplore(thisfit,'Model 7drop: obs/exp covariance diffs')
-}
-```
-
-Dark colours (pink or blue) indicate lack of agreement between obs and expected (neg or positive). 
-
-### Draw simplified path diagram
-Draw diagram of the selected model, with nonsignificant paths omitted.
-The criterion for a non-significant path is currently set to z = 1.65, but it is rather arbitrary, and the picture will look different depending on how stringent you make it.
-N.B. The file for_graphviz is set up in advance and read in and modified according to results. For this part of the script to work you must have the file 'for_graphviz.csv' in your working directory.
-
-Also, if this file is knitted as a word document, the figure won't render. To see it, knit document as html.
-
-Test A is shown in red as this has fixed paths to X1 (1) and X2 (0).
-
-NB If this figure is published, need to make following points:
-
-* This is simplified path diagram. It shows just one measure per variable, when in fact there were two, and it does not show means, though these were estimated.
-
-* Also nonsignificant paths are omitted.
-
-
-```{r insertblanks}
-#For graphviz to work as set up, and when running jacknife, need to add dummy rows for dropped paths
-
-insertblanks<-function(thissummary){
-  
-  ms<-which(thissummary$parameters$matrix=='A')
-  startsummary<-thissummary$parameters[ms,c(1,3:6)]
-  startsummary$z<-startsummary$Estimate/startsummary$Std.Error
-  
-  namelist<-thissummary$parameters$name[ms]
-  fullnamelist<-c('k2','k3','k4','k5','k6','l2','l3','l4','l5','l6')
-  w<-which(fullnamelist %in% namelist) 
-  
-  mysummary<-data.frame(matrix(NA,nrow=length(fullnamelist),ncol=dim(startsummary)))#create a clone 
-  colnames(mysummary)<-colnames(startsummary)
-  mysummary$name<-fullnamelist
-  mysummary$z<-0 #initialise with zero
-  for (i in 1:length(w)){
-    mysummary[w[i],]<-startsummary[i,]
-  }
-  return(mysummary)
-}
-```
-
-```{r drawpaths}
-if (run_drawpaths == 1){
-  
-  # omxGraphviz(biFactorModel, dotFilename = "bifactor.dot")
-  # grViz("bifactor.dot") #this will generate a .dot file but it
-  # is messy, as it shows time 1 and time 2 measures, as well as means
-  
-  thatsummary<-insertblanks(thissummary)
-  # Script below shows time1/time2 combined and omits means for clarity
-  mybit<-read.csv('for_graphviz.csv',stringsAsFactors = FALSE,header=FALSE) #full list of all paths.
-  mybit2<-print.data.frame(mybit, 
-                           quote=FALSE) #get rid of quotes
-  
-  #we now want to a) remove rows that are NS and b) put in path coeffs for the rest
-  thisrow<-12 #NB: first row with path specification is col 13
-  thatrow<-0 #counter for the summary z scores: NB these exclude measure A! 
-  for (j in 1:2){#each *factor* (not each test occasion - these are collapsed in diagram)
-    
-    for (i in 1:6){ #each task 
-      thisrow<-thisrow+1
-      
-      if(i>1){ #measure A is fixed so not in the table
-        thatrow<-thatrow+1
-        if(thatsummary$z[thatrow]<1.65)
-        {mybit2[thisrow,]<-''} #delete this one
-        else{
-          pathlabel<-round(thatsummary$Estimate[thatrow],2)
-          bb<-mybit2[thisrow,]
-          bb<-str_replace(bb,'xx',as.character(pathlabel))
-          mybit2[thisrow,]<-bb
-        }
-      } #loop to here when i is 1: no action
-    }
-  }
-  mybit2[19,]<-'' #delete path for A to X2: this one was fixed to 0
-  graphname<-paste0(colnames(alltask)[1],'_',colnames(alltask)[2],'_',colnames(alltask)[3],'_',colnames(alltask)[4],'_',colnames(alltask)[5],'_',colnames(alltask)[6])
-  mybit2[25,]<-paste("label=",graphname,";")
-  
-  dotFilename<-'dottry.dot'
-  if(usemean==0){
-    dotFilename<-'dottry_peak.dot'
-  }
-  
-  
-  write.table(mybit2, dotFilename, append = FALSE,
-              row.names = FALSE, col.names = FALSE,quote=FALSE)
-  
-  grViz(dotFilename)
-  # pathplot<-DiagrammeR::grViz(dotFilename)
-  # pathplotname<-paste0('pathplot_fix_',myfixed,'.png')
-  # pathplot %>% export_svg %>% charToRaw %>% rsvg_png(pathplotname)
-}
- 
-```
-
-
-##Check solution robustness with drop one approach and explore results
-
-Final bifactor model re-run with one subject dropped each time.
-Standardized factor loading for each run saved in dropone_z.csv.
-###Runs dropone analysis
-```{r dropone, echo=FALSE}
-
-if (run_dropone==1){
-  #First create dataframe to save the results
-  droponesummary<-insertblanks(thissummary)
-  nest<-1:(nrow(droponesummary)/2) #range for ests for F1
-  nest2<-length(nest)+nest #range for ests for F2
-  droponesummary$row<-rep(myshortlab[1+nest],2)
-  droponesummary$col[nest]<-'Factor1'
-  droponesummary$col[nest2]<-'Factor2'
-  
-  #Use'drop one' approach - reduce the dataset by one on each run
-  mycols<-nrow(summary(thisfit)$parameters)
-  PT_summary<-matrix(NA,ncol=mycols, nrow=myrow) #initialise matrix to gather estimates for each of the parameters for each of 30 runs
-  
-  for (thisdrop in 1:myrow){
-    dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
-    
-    #keep all other parameters same as last model that was run
-    
-    thismodel<- mxModel("BiFactor Model", type="RAM",
-                        manifestVars=mylabels,
-                        latentVars=c("Factor1","Factor2"),
-                        dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
-    currentFit <- mxRun(thismodel)
-    droppedsummary<-summary(currentFit)
-    
-    PT_summary[thisdrop,]<-droppedsummary$parameters$Estimate #nb all estimates - not just paths
-    
-    temp<-insertblanks(droppedsummary) #use previously defined function to give null values for dropped paths
-    nucol<-ncol(droponesummary)+1
-    droponesummary[,nucol]<-round(temp$z,2)
-    colnames(droponesummary)[nucol]<-paste0('z.',thisdrop)
-  }
-  myfixed<-myshortlab[1]
-  dropname<-paste0('dropone_z_',myfixed,'.txt')
-  write.table(t(droponesummary), dropname, sep="\t",quote=F) 
-  t(droponesummary) #display transposed
-}
-```
+If p is significant in last row, indicates fit better for bifactor. Also, note that the more negative the BIC, the better the model fit.
 
 ###Make factor scores and plot them
 In a further exploratory analysis, we plotted factor scores by making a weighted sum of scores, using factor loadings as weights.
 This shows that although the factors are modeled to be independent, they are highly intercorrelated. 
 
 ```{r makefacscores}
-if (run_facscores == 1 & run_dropone == 1){ # See run_facscores toggle
+if (run_facscores == 1){ # See run_facscores toggle
   
   #? Use loadings or zscores?
   #(Nb updated 28/8/18 to include measures from both time points)
   #This is with loadings - but it makes little difference
   #In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
-  allz1<-c(1,thatsummary$z[1:5])
-  allz2<-c(0,thatsummary$z[6:10]) #1st and 6th values for task A
+  allf1<-facloadings7[1:6]
+  allf2<-facloadings7[7:12] 
   for (i in 1:nrow(alltask)){
-    alltask$f1score[i]<-alltaskall[i,1]*allz1[1]+
-      alltaskall[i,2]*allz1[2]+
-      alltaskall[i,3]*allz1[3]+
-      alltaskall[i,4]*allz1[4]+
-      alltaskall[i,5]*allz1[5]+
-      alltaskall[i,6]*allz1[6]+
-      alltaskall[i,7]*allz1[1]+
-      alltaskall[i,8]*allz1[2]+
-      alltaskall[i,9]*allz1[3]+
-      alltaskall[i,10]*allz1[4]+
-      alltaskall[i,11]*allz1[5]+
-      alltaskall[i,12]*allz1[6]
+    alltask$f1score[i]<-alltaskall[i,1]*allf1[1]+
+      alltaskall[i,2]*allf1[2]+
+      alltaskall[i,3]*allf1[3]+
+      alltaskall[i,4]*allf1[4]+
+      alltaskall[i,5]*allf1[5]+
+      alltaskall[i,6]*allf1[6]+
+      alltaskall[i,7]*allf1[1]+
+      alltaskall[i,8]*allf1[2]+
+      alltaskall[i,9]*allf1[3]+
+      alltaskall[i,10]*allf1[4]+
+      alltaskall[i,11]*allf1[5]+
+      alltaskall[i,12]*allf1[6]
     
-    alltask$f2score[i]<-alltaskall[i,1]*allz2[1]+
-      alltaskall[i,2]*allz2[2]+
-      alltaskall[i,3]*allz2[3]+
-      alltaskall[i,4]*allz2[4]+
-      alltaskall[i,5]*allz2[5]+
-      alltaskall[i,6]*allz2[6]+
-      alltaskall[i,7]*allz2[1]+
-      alltaskall[i,8]*allz2[2]+
-      alltaskall[i,9]*allz2[3]+
-      alltaskall[i,10]*allz2[4]+
-      alltaskall[i,11]*allz2[5]+
-      alltaskall[i,12]*allz2[6]
+    alltask$f2score[i]<-alltaskall[i,1]*allf2[1]+
+      alltaskall[i,2]*allf2[2]+
+      alltaskall[i,3]*allf2[3]+
+      alltaskall[i,4]*allf2[4]+
+      alltaskall[i,5]*allf2[5]+
+      alltaskall[i,6]*allf2[6]+
+      alltaskall[i,7]*allf2[1]+
+      alltaskall[i,8]*allf2[2]+
+      alltaskall[i,9]*allf2[3]+
+      alltaskall[i,10]*allf2[4]+
+      alltaskall[i,11]*allf2[5]+
+      alltaskall[i,12]*allf2[6]
   }
+  
+  #check for bivariate outliers
+facmod <- lm(alltask$f1score~alltask$f2score)
+alltask$cookdist <- cooks.distance(facmod)
+plot(alltask$cookdist,col=particdat$handcode,pch=16)
+w<-which(alltask$cookdist>(4*mean(alltask$cookdist)))
+print('Influential points are:')
+w
+alltask$bivoutlier <-0
+alltask$bivoutlier[w] <-1
+
+#make plot, showing outliers and left-handers
   
   pngname<-paste0('factorplot_fix',myfixed,'.png')
   png(pngname, width=4, height=4, units="in", res=300)
-  plot(alltask$f1score,alltask$f2score,pch=15,col=particdat$handcode)
+  plot(alltask$f1score,alltask$f2score,pch=(15+alltask$bivoutlier),col=particdat$handcode,
+       xlab='Factor 1',ylab='Factor 2')
   abline(v=0,lty=2)
   abline(h=0,lty=2)
   mycor<-round(cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs'),3)
-  text(-35,60,paste('r = ',mycor))
+  text(-5,10,paste('r = ',mycor))
   dev.off()
 }
+
+#Show factor loadings
+paths_table<-data.frame(matrix(NA,nrow=6,ncol=5))
+colnames(paths_table)<-c('Task','Fac1','CI1','Fac2', 'CI2')
+paths_table$Task<-mylonglab #This has fixed path first
+paths_table$Fac1 <-round(allf1,2)
+paths_table$Fac2 <-round(allf2,2)
+loCI1<-allf1[2:6]-1.96*real_est_se[1:5]
+loCI2<-allf2[2:6]-1.96*real_est_se[6:10]
+hiCI1<-allf1[2:6]+1.96*real_est_se[1:5]
+hiCI2<-allf2[2:6]+1.96*real_est_se[6:10]
+paths_table$CI1[2:6]<-paste0(round(loCI1,2),' to ',round(hiCI1,2))
+paths_table$CI2[2:6]<-paste0(round(loCI2,2),' to ',round(hiCI2,2))
+paths_table[1,c(3,5)]<-'fixed'
+colnames(paths_table)<-c('Task','Path Factor 1','95% CI','Path Factor 2', '95% CI')
+
+
 ```
 
-###Jacknife estimates of path SEs
-Jacknife estimates considered for model SEs, which can be compared with standard method. The jacknife method uses the output from the drop-one analysis to look at distribution of estimates obtained with one subject omitted.
-It confirms that there are particular problems with estimates of paths from Jabberwocky to Factor 1 and from Sentence Generation to Factor 2.
+##Check solution robustness with drop one approach and explore results
+
+Final bifactor model re-run with one subject dropped each time.
+Standardized factor loading for each run saved in dropone_z.csv.
+
+This chunk drops one subject in each iteration and runs Model 6 (single factor) and Model 7 (bifactor).
+
+```{r dropone}
+#Set up model definition
+
+# residual variances
+resVars             <- mxPath( from=mylabels, arrows=2,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T),          values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels=c("e1","e2","e3","e4","e5","e6",
+                                 "e1","e2","e3","e4","e5","e6"))
+
+# latent variance
+latVar_Model6       <- mxPath( from="Factor1", arrows=2,
+                        free=T, values=1, labels ="varFactor1" )
+latVar_Model7      <- mxPath( from=c("Factor1","Factor2"), arrows=2, connect="unique.pairs",
+                        free=c(T,F,F), values=c(1,0,1), labels=c("varFactor1","cov","varFactor2") )
+
+# factor loadings
+facLoads_Model6     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                        free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,
+                               FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), #The first path is fixed at one - others scaled relative to this
+                        values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =c("l1","l2","l3","l4","l5","l6",
+                                  "l1","l2","l3","l4","l5","l6") )#same for each test on time 1 and 2
+facLoadsFactor1_Model7     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=rep(1,12),
+                               labels =c("k1","k2","k3","k4","k5","k6","k1","k2","k3","k4","k5","k6") )
+facLoadsFactor2_Model7     <- mxPath( from="Factor2", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=c(0,rep(1,5),0,rep(1,5)),
+                               labels =c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") )
+
+# means 
+means_Model6        <- mxPath( from="one", to=c(mylabels,'Factor1'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0),
+                        labels =c(myshortlab, myshortlab, NA) ) 
+                        #means constant from time 1 to time 2. 
+                        #One extra mean for the Factor, but this is set to NA
+means_Model7        <- mxPath( from="one", to=c(mylabels,'Factor1','Factor2'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+                        labels =c(myshortlab, myshortlab, NA,NA) )
+
+#Create dataframe to save the results
+nsubs<-nrow(alltaskall)
+dropone_results <- matrix(data = NA, nrow = nsubs, ncol = 5)
+  dropone_paths <-matrix(data=NA,nrow=nsubs,ncol=23)
+#Use'drop one' approach - reduce the dataset by one on each run
+
+for (thisdrop in 1:nsubs){
+  dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
+  
+  
+  #Estimate Model 6
+  myModel6 <- mxModel("Single Factor Model", type="RAM",
+                          manifestVars=mylabels, latentVars="Factor1",
+                          dataRaw, resVars, latVar_Model6, facLoads_Model6, means_Model6)
+  Model6Fit <- mxRun(myModel6)
+  summary.Model6<-summary(Model6Fit, refModels=mxRefModels(Model6Fit, run = TRUE))   
+  
+  #Estimate Model 7
+  myModel7 <- mxModel("Bifactor Model", type="RAM",
+                          manifestVars=mylabels, latentVars=c("Factor1", "Factor2"),
+                          dataRaw, resVars, latVar_Model7, facLoadsFactor1_Model7, facLoadsFactor2_Model7, means_Model7) 
+  Model7Fit <- mxRun(myModel7)
+  summary.Model7<-summary(Model7Fit, refModels=mxRefModels(Model7Fit, run = TRUE)) 
+  
+  #Compare Models
+  mcomp<-mxCompare(Model7Fit, Model6Fit)
+  
+  #Write results to dropone_results data frame
+  dropone_results[thisdrop, 1] <- round(summary.Model6$BIC.Mx, 3)
+  dropone_results[thisdrop, 2] <- round(summary.Model7$BIC.Mx, 3)
+  dropone_results[thisdrop, 3] <- round(mcomp$diffLL[2], 3)
+  dropone_results[thisdrop, 4] <- mcomp$diffdf[2]
+  dropone_results[thisdrop, 5] <- round(mcomp$p[2], 3)
+
+  #save path estimates
+  dropone_paths[thisdrop,]<-summary.Model7$parameters$Estimate
+}
+
+
+colnames(dropone_results) <- c('BIC_mod6','BIC_mod7','chi.diff','df.diff','p.diff')
+dropone_results<-data.frame(dropone_results)
+dropone_results$BIC_diff <- dropone_results$BIC_mod6 - dropone_results$BIC_mod7
+
+dropone_results$bestModel<-'one factor'
+w<-which(dropone_results$p.diff < .05 & dropone_results$BIC_diff > 0)
+dropone_results$bestModel[w]<-'bifactor'
+```
+
+
+
+###jacknife estimates of path SEs
+jacknife estimates considered for model SEs, which can be compared with standard method. The jacknife method uses the output from the drop-one analysis to look at distribution of estimates obtained with one subject omitted.
+
 
 ```{R jackknife}
 if (run_dropone == 1){ # Only runs if dropone has also run
-  # Calculates the Jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
+  # Calculates the jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
 
  n=myrow
- real_est<-thissummary$parameters$Estimate #estimate with all cases included
- #PT_summary
- PT_means<-colMeans(PT_summary) #average estimate across all dropone runs
- JK_bias<-(n-1)*(PT_means-real_est) 
+
+ #jacknife summary
+ avgpathmeans<-colMeans(dropone_paths) #average estimate across all dropone runs
+ jk_bias<-(n-1)*(avgpathmeans-real_est_path) 
  
- Jack_est<-(n*real_est)-((n-1)*PT_means)
+ jack_est<-(n*real_est_path)-((n-1)*avgpathmeans)
 pngname<-paste0('jacknifeplot_fix',myfixed,'.png')
 png(pngname, width=4, height=4, units="in", res=300)
 
- plot(real_est,Jack_est)
+ plot(real_est_path,jack_est)
  dev.off()
  
- # calculates the Jackknife SE estimates to allow us to calculate the CI.
+ # calculates the jackknife SE estimates to allow us to calculate the CI.
  
- #PT_summary
- mycol<-length(thissummary$parameters$Estimate)
- Jack_SE<-vector(mode="numeric",length=mycol)
+ mycol<-length(real_est_path)
+ jack_SE<-vector(mode="numeric",length=mycol)
  for (i in 1:(mycol))
  {
- Jack_SE[i]<-sqrt(((n-1)/n)*sum((PT_summary[,i]-PT_means[i])^2))
+ jack_SE[i]<-sqrt(((n-1)/n)*sum((dropone_paths[,i]-avgpathmeans[i])^2))
  }
- myres<-thissummary$parameters[,1:6]
- myres$L_ci<-round(thissummary$parameters$Estimate-1.65*thissummary$parameters$Std.Error,2)
- myres$U_ci<-round(thissummary$parameters$Estimate+1.65*thissummary$parameters$Std.Error,2)
- myres$Jack_Estimate<-round(Jack_est,2)
- myres$Jack_Std.Error<-round(Jack_SE,2)
- myres$JK_L_ci<-round(Jack_est-1.65*Jack_SE,2)
- myres$JK_U_ci<-round(Jack_est+1.65*Jack_SE,2)
- myres$JK_bias<-round(JK_bias,2)
+ myres<-data.frame(real_est_path)
+ colnames(myres)[1]<-'Estimate'
+ myres$L_ci<-round(real_est_path-1.65*real_est_se,2)
+ myres$U_ci<-round(real_est_path+1.65*real_est_se,2)
+ myres$jack_Estimate<-round(jack_est,2)
+ myres$jack_Std.Error<-round(jack_SE,2)
+ myres$jk_L_ci<-round(jack_est-1.65*jack_SE,2)
+ myres$jk_U_ci<-round(jack_est+1.65*jack_SE,2)
+ myres$jk_bias<-round(jk_bias,2)
  myres$Estimate<-round(myres$Estimate,2)
  
- myres[,c(1,3,4,5,9)]
 
- write.csv(myres,"Jacknife_ests.csv")
+ write.csv(myres,"jacknife_ests.csv")
 }
 ```
 
@@ -1316,21 +1213,62 @@ sessionInfo()
 ## Behavioural results
 We did not have specific predictions for the behavioural results, but present them here for completeness. For the List Generation and Sentence Generation tasks (tasks A - List Generation and D - Sentence Generation), the number of words spoken per trial was recorded. The number of words spoken in both tasks and sessions were very similar: For task A, session 1, mean = `r mymeanw[1]`, SD = `r mysdw[1]`, session 2, mean = `r mymeanw[3]`, SD = `r mysdw[3]`; For task D, session 1, mean = `r mymeanw[2]`, SD = `r mysdw[2]`, session 2, mean = `r mymeanw[4]`, SD = `r mysdw[4]`. A repeated measures ANOVA showed no significant effects of task: F(`r round(task.aov[1],0)`,`r round(task.aov[2],0)`) = `r round(task.aov[7],2)`, *p* = `r round(task.aov[9],3)`, or session: F(`r round(session.aov[1],0)`,`r round(session.aov[2],0)`) = `r round(session.aov[7],2)`, *p* = `r round(session.aov[9],3)` on the number of words spoken. Trials where participants failed to respond, or responded too early were excluded from analysis: these constituted less than 0.1% of trials.
 
-*Table 1. Behavioural data for tasks B, C, E and F.*
+*Table 1. Percent correct and RT data for tasks B, C, E and F.*
 
-For decision making tasks (B, C, E and F) the mean (SD) accuracy, reaction times, and percentage of omitted responses. T-tests and p-values shown for comparison of Session 1 vs Session 2. B = Phonological Decision; C = Semantic Decision; E = Sentence Comprehension; F = Syntactic Decision. 
+*For decision making tasks (B, C, E and F) the mean (SD) accuracy, reaction times, and percentage of omitted responses. T-tests and p-values shown for comparison of Session 1 vs Session 2. B = Phonological Decision; C = Semantic Decision; E = Sentence Comprehension; F = Syntactic Decision.* 
 ```{r tab1, echo=FALSE}
-kable(t(behavdf))
+kable(t(behavdf)
 
 ```
+
 Note that for task F participants were required to wait until the end of the word sequence before responding, and had only a second to respond; this accounts for the fast reaction times and relatively high number of omitted responses in task F. By contrast, in tasks B, C and E participants could respond at any time during the 3.3 second stimulus display.
 
-The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showed evidence of test-retest improvements, as both accuracy and reaction times improved, and the number of omitted responses fell from Session 1 to Session 2.
+The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showed evidence of practice effects, as both accuracy and reaction times improved, and the number of omitted responses fell from Session 1 to Session 2.
 
 ## Excluded LI data
 The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
 
-Figure 5 shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for all conditions were normally distributed (p > 0.1 in all cases). One sample t-tests (one-tailed, m0 = 0) showed that all conditions were significantly left lateralised (p < 0.001 in all cases), except task F (Syntactic Decision) at Sessions 1 (p = 0.520) and 2 (p = 0.908), which were not significantly different to zero.
+Figure 5 **TO BE REDONE** shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
+ß
+![*Figure 5. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group to zero (omitting excluded datapoints, shown in red) (* p < .05, ** p < .01, *** p < .001).*](LIpirateA2.png)
 
-![*Figure 5. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group (omitting excluded datapoints, shown in red) to zero (*** p < .001).*](LIpirateA2.png)
- 
+Figure 6 shows a heatmap correlation matrix of the LI values for all tasks and sessions. Test-retest correlations were variable between tasks. Task A (List Generation) had poor test-retest reliability (Pearson’s r = `r cormat[1,2]`), and low correlations with other tasks. Test-retest reliability for other tasks ranged from r = `r min(test.retest.cor[2:6])` to `r max(test.retest.cor[2:6])` Tasks B, C, D and E were strongly intercorrelated. Task F (Syntactic Decision) had high test-retest reliability (r = `r cormat[11,12]`) but relatively low correlations with other tasks.
+
+![*Figure 6. Correlation matrix for LIs from the six language tasks given on two occasions*](heatmap.png)
+
+## Structural Equation Modelling
+The LI data were entered into the SEM analysis to test hypotheses about the group mean LI values and covariances in LI values across subjects. Table 2 summarises the data on model fit.
+
+### Step 1: Testing Stability of LI Values
+As shown in Table 2, the fit of all the means-only models is very poor. This is to be expected, as these models ignore covariances, and, as indicated in Figure 6, there are substantial correlations both between and within tasks. Our interest at this point, however, is in the relative fit of different models of means, rather than overall model fit. The fully-saturated model (with free means/variances)  was compared to the task effect model, which fixed the means and variances for each task to be the same at each session (i.e. A1 = A2, B1 = B2, etc.). The Bayesian Information Criteria (BIC) for this comparison is shown in Table 2. The fit of the task effect model did not deteriorate significantly from that of the fully-saturated model. This supported the hypothesis that LI means for each task were stable across the two sessions.
+
+```{r table2, echo=FALSE}
+kable(bigsummary,caption='Table 2. Model fit statistics from structural equation models')
+
+```
+
+### Step 2: Testing population bias model
+
+To demonstrate whether the means differed between tasks, the task effect model was compared to the population bias model, where means for all tasks are fixed to the same value. This may be seen as a null hypothesis that treats all tasks as equivalent indices of laterality. The population bias model gave significantly worse fit (see Table 2). Hence, there was strong evidence that the LI means differed between tasks.
+
+Two further sub-hypotheses were compared against task effect model; the first was the dorsal-ventral stream model. This comparison required us to categorise the language tasks. Tasks A and B were regarded as involving strong dorsal stream activity, task C as strong ventral stream activity, and tasks D, E and F as intermediate. This model gave significantly poorer fit than the task effect model – as is evident from a consideration of Figure 5, which shows relatively weak lateralisation for tasks A and B compared to task D. The lexical retrieval model did not fare any better. We regarded tasks B and D as involving strong lexical retrieval, whereas tasks A, C and F did not involve lexical retrieval, and task E was difficult to classify and so was considered as independent of the other measures. Again, this specific model gave a worse fit than the task effect model, indicating that, while laterality varied between tasks, it did not fit the specific pattern we had predicted. Note, however, that the pre-registered tests that we specified for both theories have some limitations, as we discuss further below.
+
+## Step 3: Testing models of covariances
+At Step 3 we tested whether the covariances between tasks had a single factor structure (person effect model) or a two factor structure (task by person effect model). Not surprisingly, given the strong correlations in Figure 6, both within and across tasks, the person effect model gave substantially better fit than the task effect model (see Table 2); nevertheless, the overall fit of this model was poor. The task by person effect model, with two factors, gave significantly improved fit. A plot of the two factors is shown in Figure 7: note that, although the model fit is not affected by task selection, the factor scores depend on which task has fixed paths to the factors. The paths for the case when Sentence Generation is fixed are shown in Table 3. It can be seen that List Generation has only a weak loading on Factor 1, whereas Phonological Decision, Semantic Decision and Sentence Comprehension have moderate loadings on both Factors. Syntactic Decision has a strong loading on Factor 2 but does not load on Factor 1, reflecting the weak correlation of this task with Sentence Generation.
+
+```{r pathtable, echo=FALSE}
+kable(paths_table,caption='Table 3: Factor loadings for bifactor model')
+```
+
+In our original analysis with just 30 participants, a similar factor structure was observed, but there was a concern that this depended solely on a single left-handed participant (See Supplementary Material). With the larger sample of 37 participants, the bifactor solution was superior in all runs of a leave-one out analysis. The bifactor model was also the best-fitting model when only the 30 right-handers were included in the analysis. Nevertheless, it is clear from Figure 7 that the two factors are highly intercorrelated, and the impression is that the factor solution is heavily affected by some influential cases. Cook's distance was computed to identify four bivariate outliers, which are marked with different symbols in Figure 7. Three of the outliers were left-handers and one was a right-hander. When the analysis was re-run omitting these cases, the single factor model gave a better fit in all but one run of a leave-one-out analysis. 
+
+![*Figure 7. Correlation between two factors from bifactor model, with left-handers shown in red, and bivariate outliers as circles*](factorplot_fixSentGen.png)
+
+
+
+
+
+
+
+
+
