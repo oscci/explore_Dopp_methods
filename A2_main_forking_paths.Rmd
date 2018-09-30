@@ -58,17 +58,17 @@ library(knitr)
 
 ########### Set toggles before running! ################################################################
 RHonly            <- 0 # Set to 0 if want to include L handers
-Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
+Init30only        <- 1 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
 #removesubs       <- c(10,22,26,28) #specific IDs to remove; set to zero to remove none
 removesubs        <- 0
 run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group
 run_behavioural   <- 1 # Set to 1 to analyse behavioural data
-usemean           <- 1 # Set to 0 to analyse original peak-based LI values
+usemean           <- 0 # Set to 0 to analyse original peak-based LI values
 remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials
 tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model
 run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data
 run_pirate        <- 1 # Set to 1 to run pirate plot of LI data
-run_corrheat      <- 1 # Set to 1 to run correlation matrix heatmap plot
+do_corrheat       <- 1 # Set to 1 to run correlation matrix heatmap plot
 run_pathdrop      <- 1 # Set to 1 to run pathdrop SEM analysis
 run_covexplore    <- 1 # Set to 1 to run covariance exploration analysis
 run_drawpaths     <- 1 # Set to 1 to run graphviz paths plot
@@ -76,13 +76,14 @@ run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
 run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
 
 nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
- # c(1,2,3,4,5,6,7,8,9,10,11,12)
+  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
 # c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
 # c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
- c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+# c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
 # c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
 # c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
-
+tabcount         <- 0  #Start of counter for tables in Results section
+figcount         <- 4  #Start of counter for figs in Results section
 
 ########################################################################################################
 
@@ -167,8 +168,8 @@ if (run_behavioural==1){ #See run_behavioural toggle
   
   #make data frame to hold data formatted for paper
   behavdf<-data.frame(matrix(NA,nrow=4,ncol=10))
-  colnames(behavdf)<-c('%corr.1','%corr.2','t','p','RT.1','RT.2','t','p','omit.1 %','omit.2%')
-  
+  colnames(behavdf)<-c('% Correct.1','% Correct.2','t','p','RT.1','RT.2','t','p','% Omitted.1','% Omitted.2')
+ 
   #get means and SDs for word responses
     mymeanw<-round(sapply(behavdat[,word.cols],mean,na.rm=TRUE),1)
   mysdw<-round(sapply(behavdat[,word.cols],sd,na.rm=TRUE),2)
@@ -194,7 +195,7 @@ if (run_behavioural==1){ #See run_behavioural toggle
     behavdf[i,7]<-round(thist2$statistic,2)
     behavdf[i,8]<-round(thist2$p.value,3)
   }
-  rownames(behavdf)<-c('B','C','E','F')
+  rownames(behavdf)<-c('B. Phonological Decision','C. Semantic Decision','E. Sentence Comprehension','F. Syntactic Decision')
   #NB row/cols from table are transposed before outputting
   write.table(t(behavdf), "Behavtable.txt", sep="\t",row.names=TRUE,quote=FALSE) #Currently this is table 1
 }
@@ -476,9 +477,8 @@ if (run_pirate == 1){ # See run_pirate toggle
 ##Correlation matrix as heatmap
 ```{r corrheat}
 
-if (run_corrheat == 1){ # See run_corrheat toggle
-  
-  png(filename="heatmap.png", width=1500, height=1500,res=300)
+if (do_corrheat == 1){ # See do_corrheat toggle
+   png(filename="heatmap.png", width=1500, height=1500,res=300)
   cormat<-round(cor(alltask[,ilist], use="pairwise.complete.obs", method="pearson"),2)
   rownames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
   colnames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
@@ -533,7 +533,7 @@ if (run_corrheat == 1){ # See run_corrheat toggle
 ```
 
 ![Heatmap](heatmap.png)
-##Structural equation Models: 
+## Structural equation Models: 
 
 ```{r setupbigsummary}
 #We'll create a Table, bigsummary, to hold fit stats for different Models
@@ -1068,7 +1068,7 @@ Standardized factor loading for each run saved in dropone_z.csv.
 
 This chunk drops one subject in each iteration and runs Model 6 (single factor) and Model 7 (bifactor).
 
-```{r dropone}
+```{r dropone, message=FALSE}
 #Set up model definition
 
 # residual variances
@@ -1155,6 +1155,8 @@ dropone_results$BIC_diff <- dropone_results$BIC_mod6 - dropone_results$BIC_mod7
 dropone_results$bestModel<-'one factor'
 w<-which(dropone_results$p.diff < .05 & dropone_results$BIC_diff > 0)
 dropone_results$bestModel[w]<-'bifactor'
+print(dropone_results)
+bifacwin<-length(w)
 ```
 
 
@@ -1199,7 +1201,7 @@ png(pngname, width=4, height=4, units="in", res=300)
  myres$jk_bias<-round(jk_bias,2)
  myres$Estimate<-round(myres$Estimate,2)
  
-
+plot(myres$Estimate,myres$jack_Estimate,main ='Jacknife analysis')
  write.csv(myres,"jacknife_ests.csv")
 }
 ```
@@ -1207,17 +1209,21 @@ png(pngname, width=4, height=4, units="in", res=300)
 ## Session information
 ```{r sessinfo}
 sessionInfo()
+
 ```
 
 <!-- Next chunks taken from manuscript --> 
 ## Behavioural results
 We did not have specific predictions for the behavioural results, but present them here for completeness. For the List Generation and Sentence Generation tasks (tasks A - List Generation and D - Sentence Generation), the number of words spoken per trial was recorded. The number of words spoken in both tasks and sessions were very similar: For task A, session 1, mean = `r mymeanw[1]`, SD = `r mysdw[1]`, session 2, mean = `r mymeanw[3]`, SD = `r mysdw[3]`; For task D, session 1, mean = `r mymeanw[2]`, SD = `r mysdw[2]`, session 2, mean = `r mymeanw[4]`, SD = `r mysdw[4]`. A repeated measures ANOVA showed no significant effects of task: F(`r round(task.aov[1],0)`,`r round(task.aov[2],0)`) = `r round(task.aov[7],2)`, *p* = `r round(task.aov[9],3)`, or session: F(`r round(session.aov[1],0)`,`r round(session.aov[2],0)`) = `r round(session.aov[7],2)`, *p* = `r round(session.aov[9],3)` on the number of words spoken. Trials where participants failed to respond, or responded too early were excluded from analysis: these constituted less than 0.1% of trials.
 
-*Table 1. Percent correct and RT data for tasks B, C, E and F.*
+For the remaining tasks, performance was assessed in terms of percentage trials correct and reaction time (RT). Table `r (tabcount+1)` shows mean (SD) for both sessions.
+
+*Table `r (tabcount+1)`. Percent correct and RT data for tasks B, C, E and F.*
 
 *For decision making tasks (B, C, E and F) the mean (SD) accuracy, reaction times, and percentage of omitted responses. T-tests and p-values shown for comparison of Session 1 vs Session 2. B = Phonological Decision; C = Semantic Decision; E = Sentence Comprehension; F = Syntactic Decision.* 
 ```{r tab1, echo=FALSE}
-kable(t(behavdf)
+thistab<-t(behavdf)
+kable(thistab)
 
 ```
 
@@ -1225,25 +1231,33 @@ Note that for task F participants were required to wait until the end of the wor
 
 The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showed evidence of practice effects, as both accuracy and reaction times improved, and the number of omitted responses fell from Session 1 to Session 2.
 
-## Excluded LI data
-The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
+## Laterality index data
 
-Figure 5 **TO BE REDONE** shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
-ß
-![*Figure 5. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group to zero (omitting excluded datapoints, shown in red) (* p < .05, ** p < .01, *** p < .001).*](LIpirateA2.png)
+### Excluded trials from fTCD
 
-Figure 6 shows a heatmap correlation matrix of the LI values for all tasks and sessions. Test-retest correlations were variable between tasks. Task A (List Generation) had poor test-retest reliability (Pearson’s r = `r cormat[1,2]`), and low correlations with other tasks. Test-retest reliability for other tasks ranged from r = `r min(test.retest.cor[2:6])` to `r max(test.retest.cor[2:6])` Tasks B, C, D and E were strongly intercorrelated. Task F (Syntactic Decision) had high test-retest reliability (r = `r cormat[11,12]`) but relatively low correlations with other tasks.
+The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were a further `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
 
-![*Figure 6. Correlation matrix for LIs from the six language tasks given on two occasions*](heatmap.png)
+`r figcount<-figcount+1` 
+Figure `r figcount` **TO BE REDONE** shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
+
+
+![*Figure `r figcount`. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group to zero (omitting excluded datapoints, shown in red) (* p < .05, ** p < .01, *** p < .001).*](LIpirateA2.png)
+
+`r figcount<-figcount+1`
+Figure `r figcount` shows a heatmap correlation matrix of the LI values for all tasks and sessions. Test-retest correlations were variable between tasks. Task A (List Generation) had poor test-retest reliability (Pearson’s r = `r cormat[1,2]`), and low correlations with other tasks. Test-retest reliability for other tasks ranged from r = `r min(test.retest.cor[2:6])` to `r max(test.retest.cor[2:6])`. Tasks B, C, D and E were strongly intercorrelated. Task F (Syntactic Decision) had acceptable test-retest reliability (r = `r cormat[11,12]`) but relatively low correlations with other tasks.
+
+![*Figure `r figcount`. Correlation matrix for LIs from the six language tasks given on two occasions*](heatmap.png)
 
 ## Structural Equation Modelling
 The LI data were entered into the SEM analysis to test hypotheses about the group mean LI values and covariances in LI values across subjects. Table 2 summarises the data on model fit.
 
 ### Step 1: Testing Stability of LI Values
-As shown in Table 2, the fit of all the means-only models is very poor. This is to be expected, as these models ignore covariances, and, as indicated in Figure 6, there are substantial correlations both between and within tasks. Our interest at this point, however, is in the relative fit of different models of means, rather than overall model fit. The fully-saturated model (with free means/variances)  was compared to the task effect model, which fixed the means and variances for each task to be the same at each session (i.e. A1 = A2, B1 = B2, etc.). The Bayesian Information Criteria (BIC) for this comparison is shown in Table 2. The fit of the task effect model did not deteriorate significantly from that of the fully-saturated model. This supported the hypothesis that LI means for each task were stable across the two sessions.
+`r tabcount<-tabcount+1`
+As shown in Table `r tabcount`, the fit of all the means-only models is very poor. This is to be expected, as these models ignore covariances, and, as indicated in Figure 6, there are substantial correlations both between and within tasks. Our interest at this point, however, is in the relative fit of different models of means, rather than overall model fit. The fully-saturated model (with free means/variances)  was compared to the task effect model, which fixed the means and variances for each task to be the same at each session (i.e. A1 = A2, B1 = B2, etc.). The Bayesian Information Criteria (BIC) for this comparison is shown in Table 2. The fit of the task effect model did not deteriorate significantly from that of the fully-saturated model. This supported the hypothesis that LI means for each task were stable across the two sessions.
 
 ```{r table2, echo=FALSE}
-kable(bigsummary,caption='Table 2. Model fit statistics from structural equation models')
+mycaption<-paste0('Table ', tabcount,'. Model fit statistics from structural equation models')
+kable(bigsummary,caption=mycaption)
 
 ```
 
@@ -1251,19 +1265,30 @@ kable(bigsummary,caption='Table 2. Model fit statistics from structural equation
 
 To demonstrate whether the means differed between tasks, the task effect model was compared to the population bias model, where means for all tasks are fixed to the same value. This may be seen as a null hypothesis that treats all tasks as equivalent indices of laterality. The population bias model gave significantly worse fit (see Table 2). Hence, there was strong evidence that the LI means differed between tasks.
 
-Two further sub-hypotheses were compared against task effect model; the first was the dorsal-ventral stream model. This comparison required us to categorise the language tasks. Tasks A and B were regarded as involving strong dorsal stream activity, task C as strong ventral stream activity, and tasks D, E and F as intermediate. This model gave significantly poorer fit than the task effect model – as is evident from a consideration of Figure 5, which shows relatively weak lateralisation for tasks A and B compared to task D. The lexical retrieval model did not fare any better. We regarded tasks B and D as involving strong lexical retrieval, whereas tasks A, C and F did not involve lexical retrieval, and task E was difficult to classify and so was considered as independent of the other measures. Again, this specific model gave a worse fit than the task effect model, indicating that, while laterality varied between tasks, it did not fit the specific pattern we had predicted. Note, however, that the pre-registered tests that we specified for both theories have some limitations, as we discuss further below.
+Two further sub-hypotheses were compared against task effect model; the first was the dorsal-ventral stream model. This comparison required us to categorise the language tasks. Tasks A and B were regarded as involving strong dorsal stream activity, task C as strong ventral stream activity, and tasks D, E and F as intermediate. This model gave significantly poorer fit than the task effect model – as is evident from a consideration of Figure `r (figcount-1)`, which shows relatively weak lateralisation for tasks A and B compared to task D. The lexical retrieval model did not fare any better. We regarded tasks B and D as involving strong lexical retrieval, whereas tasks A, C and F did not involve lexical retrieval, and task E was difficult to classify and so was considered as independent of the other measures. Again, this specific model gave a worse fit than the task effect model, indicating that, while laterality varied between tasks, it did not fit the specific pattern we had predicted. Note, however, that the pre-registered tests that we specified for both theories have some limitations, as we discuss further below.
 
-## Step 3: Testing models of covariances
-At Step 3 we tested whether the covariances between tasks had a single factor structure (person effect model) or a two factor structure (task by person effect model). Not surprisingly, given the strong correlations in Figure 6, both within and across tasks, the person effect model gave substantially better fit than the task effect model (see Table 2); nevertheless, the overall fit of this model was poor. The task by person effect model, with two factors, gave significantly improved fit. A plot of the two factors is shown in Figure 7: note that, although the model fit is not affected by task selection, the factor scores depend on which task has fixed paths to the factors. The paths for the case when Sentence Generation is fixed are shown in Table 3. It can be seen that List Generation has only a weak loading on Factor 1, whereas Phonological Decision, Semantic Decision and Sentence Comprehension have moderate loadings on both Factors. Syntactic Decision has a strong loading on Factor 2 but does not load on Factor 1, reflecting the weak correlation of this task with Sentence Generation.
+### Step 3: Testing models of covariances
+At Step 3 we tested whether the covariances between tasks had a single factor structure (person effect model) or a two factor structure (task by person effect model). Not surprisingly, given the strong correlations in Figure `r figcount`, both within and across tasks, the person effect model gave substantially better fit than the task effect model (see Table `r tabcount`); nevertheless, the overall fit of this model was poor. The task by person effect model, with two factors, gave significantly improved fit. 
+
+`r tabcount<-tabcount+1`
+Note that, although the model fit is not affected by task selection, the factor scores depend on which task has fixed paths to the factors. The paths for the case when `r mylonglab[nuorder[1]]` is fixed are shown in Table `r tabcount`. 
 
 ```{r pathtable, echo=FALSE}
-kable(paths_table,caption='Table 3: Factor loadings for bifactor model')
+mycaption<-paste0('Table ',tabcount,': Factor loadings for bifactor model, Task ',LETTERS[nuorder[1]],' as fixed path.')
+kable(paths_table,caption=mycaption)
 ```
 
-In our original analysis with just 30 participants, a similar factor structure was observed, but there was a concern that this depended solely on a single left-handed participant (See Supplementary Material). With the larger sample of 37 participants, the bifactor solution was superior in all runs of a leave-one out analysis. The bifactor model was also the best-fitting model when only the 30 right-handers were included in the analysis. Nevertheless, it is clear from Figure 7 that the two factors are highly intercorrelated, and the impression is that the factor solution is heavily affected by some influential cases. Cook's distance was computed to identify four bivariate outliers, which are marked with different symbols in Figure 7. Three of the outliers were left-handers and one was a right-hander. When the analysis was re-run omitting these cases, the single factor model gave a better fit in all but one run of a leave-one-out analysis. 
+To test the robustness of the factor structure, a drop-one analysis was conducted, by re-running the models with `r (nsub-1)` of the `r nsub` participants. This showed that the bifactor model gave better fit than the single factor model on `r bifacwin` of `r nsub` runs.
 
-![*Figure 7. Correlation between two factors from bifactor model, with left-handers shown in red, and bivariate outliers as circles*](factorplot_fixSentGen.png)
+**This bit of text just for main Results with full sample**
+`r figcount <- figcount+1`
+A plot of the two factors is shown in Figure `r figcount`. 
 
+It can be seen that List Generation has only a weak loading on Factor 1, whereas Phonological Decision, Semantic Decision and Sentence Comprehension have moderate loadings on both Factors. Syntactic Decision has a strong loading on Factor 2 but does not load on Factor 1, reflecting the weak correlation of this task with Sentence Generation.
+
+
+![*Figure `r figcount`. Correlation between two factors from bifactor model, with left-handers shown in red, and bivariate outliers as circles*](factorplot_fixSentGen.png)
+In our original analysis with just 30 participants, a similar factor structure was observed, but there was a concern that this depended solely on a single left-handed participant (See Supplementary Material). With the larger sample of 37 participants, the bifactor solution was superior in all runs of a leave-one out analysis. The bifactor model was also the best-fitting model when only the 30 right-handers were included in the analysis. Nevertheless, it is clear from Figure `r figcount` that the two factors are highly intercorrelated, and the impression is that the factor solution is heavily affected by some influential cases. Cook's distance was computed to identify four bivariate outliers, which are marked with different symbols in Figure `r figcount`. Three of the outliers were left-handers and one was a right-hander. When the analysis was re-run omitting these cases, the single factor model gave a better fit in all but one run of a leave-one-out analysis. 
 
 
 
