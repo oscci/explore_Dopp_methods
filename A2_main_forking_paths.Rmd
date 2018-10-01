@@ -57,7 +57,7 @@ library(knitr)
 
 ########### Set toggles before running! ################################################################
 RHonly            <- 0 # Set to 0 if want to include L handers
-Init30only        <- 1 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
+Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
 #removesubs       <- c(10,22,26,28) #specific IDs to remove; set to zero to remove none
 removesubs        <- 0
 run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group
@@ -106,7 +106,6 @@ particdat$handcode<-2
 particdat$handcode[rhanded]<-1
 #Handcode needed when numeric value used for colour in plots
 
-
 if (Init30only==1) {# original sample from prereg analysis
   print('First 30 subjects only included in analysis')
   particdat<-particdat[1:30,]
@@ -119,10 +118,11 @@ if (RHonly==1){ #See RHonly toggle
 if (removesubs>0){
 particdat<-particdat[-removesubs,] #NB defined by row number, NOT subject ID
 }
+
 if(run_participants==1){ #See run_participants toggle
   #Participant descriptors reported in paper
   print('Gender x handedness')
- print( table(particdat$Gender,particdat$handedness))
+  print( table(particdat$Gender,particdat$handedness))
   ageyr<-particdat$Age_m/12
   print('Age in yr')
   print(summary(ageyr))
@@ -138,14 +138,17 @@ if(run_participants==1){ #See run_participants toggle
 if (run_behavioural==1){ #See run_behavioural toggle
   
   behavdat<-read.csv('A2_Behavioural_Data.csv')
-  behavdat<-behavdat[particdat$ID,] #need to remove one S who is in this file but not tested
   
- #NB Do not need to specify exclusions by sample or handedness here.
+  # Only include participants in particdat
+  behavdat <- behavdat[
+    which(particdat$ID == behavdat$Filename), ]
+
+  #NB Do not need to specify exclusions by sample or handedness here.
   #Participant ID has already incorporated there
   
   #word data
   word.cols<-grep('*.Words',colnames(behavdat))
- tab1a<- stargazer(behavdat[,word.cols],type='text')
+  tab1a<- stargazer(behavdat[,word.cols],type='text')
   
   #accuracy data
   acc.cols<-grep('*.Acc', colnames(behavdat))
@@ -170,16 +173,16 @@ if (run_behavioural==1){ #See run_behavioural toggle
   colnames(behavdf)<-c('% Correct.1','% Correct.2','t','p','RT.1','RT.2','t','p','% Omitted.1','% Omitted.2')
  
   #get means and SDs for word responses
-    mymeanw<-round(sapply(behavdat[,word.cols],mean,na.rm=TRUE),1)
+  mymeanw<-round(sapply(behavdat[,word.cols],mean,na.rm=TRUE),1)
   mysdw<-round(sapply(behavdat[,word.cols],sd,na.rm=TRUE),2)
   mymeanp<-round(sapply(behavdat[,acc.cols],mean,na.rm=TRUE),1)
   mysdp<-round(sapply(behavdat[,acc.cols],sd,na.rm=TRUE),2)
   mymeanr<-round(sapply(behavdat[,rt.cols],mean,na.rm=TRUE),2)
   mysdr<-round(sapply(behavdat[,rt.cols],sd,na.rm=TRUE),2)
-    mymeano<-round(sapply(behavdat[,omit.cols],mean,na.rm=TRUE),2)
+  mymeano<-round(sapply(behavdat[,omit.cols],mean,na.rm=TRUE),2)
   mysdo<-round(sapply(behavdat[,omit.cols],sd,na.rm=TRUE),2)
   
-    for (i in 1:4){
+  for (i in 1:4){
     
     behavdf[i,1]<-paste0(mymeanp[i],' (',mysdp[i],')')
     behavdf[i,2]<-paste0(mymeanp[(i+4)],' (',mysdp[i+4],')')
@@ -201,19 +204,20 @@ if (run_behavioural==1){ #See run_behavioural toggle
 ```
 
 ```{r behavaov}
-  #Do Anova on words for tasks A and D - need long form file
+#Do Anova on words for tasks A and D - need long form file
 #Output from the aov is incorporated in the text for methods
-  nsub<-nrow(behavdat)
-  subvec<-rep(1:nsub,4)
-  wordvec<-c(behavdat$A1.Words,behavdat$A2.Words,behavdat$D1.Words,behavdat$D2.Words)
-  taskvec<-c(rep(1,nsub*2),rep(0,nsub*2))
-  timevec<-c(rep(1,nsub),rep(2,nsub),rep(1,nsub),rep(2,nsub))
-  word.df<-data.frame(cbind(subvec,wordvec,taskvec,timevec))
-  colnames(word.df)<-c('sub','word','task','time')
-  word.df$sub<-as.factor(word.df$sub)
-  myaov<-summary(aov(word~(task*time)+ Error(sub/(task*time)),data=word.df))
-  task.aov <-unlist(myaov$'Error: sub:task')
-  session.aov <-unlist(myaov$'Error: sub:time')
+
+nsub<-nrow(behavdat)
+subvec<-rep(1:nsub,4)
+wordvec<-c(behavdat$A1.Words,behavdat$A2.Words,behavdat$D1.Words,behavdat$D2.Words)
+taskvec<-c(rep(1,nsub*2),rep(0,nsub*2))
+timevec<-c(rep(1,nsub),rep(2,nsub),rep(1,nsub),rep(2,nsub))
+word.df<-data.frame(cbind(subvec,wordvec,taskvec,timevec))
+colnames(word.df)<-c('sub','word','task','time')
+word.df$sub<-as.factor(word.df$sub)
+myaov<-summary(aov(word~(task*time)+ Error(sub/(task*time)),data=word.df))
+task.aov <-unlist(myaov$'Error: sub:task')
+session.aov <-unlist(myaov$'Error: sub:time')
 ```
 
 ##Code for reading and reshaping LI data
@@ -225,10 +229,8 @@ N.B. Can select to use original LI values based on peak, or LI values from mean 
 
 data1<-read.csv('Results_Session1.csv')
 data2<-read.csv('Results_Session2.csv')
-data1<-data1[particdat$ID,]
-data2<-data2[particdat$ID,]
-
-
+data1<-data1[which(particdat$ID == data1$Filename), ]
+data2<-data2[which(particdat$ID == data2$Filename), ]
 
 alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
              select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
@@ -245,11 +247,8 @@ myshortlab<-c('ListGen','PhonDec','SemDec','SentGen','SentComp','Jabber')
 mylonglab <-c('List Generation','Phonological Decision','Semantic Decision',
               'Sentence Generation','Sentence Comprehension','Syntactic Decision')
 
-
 colnames(alltaskall)<-mylabels
 head(alltaskall)
-
-
 
 ```
 
@@ -299,9 +298,9 @@ if (remove.Ntrial==1){ #See remove.Ntrial toggle
 
   dropN<-0 #initialise counter
   for (i in 1:6){
-    w<-which(colnames(data1)==nbit[i])
+    w<-which(colnames(data1) == nbit[i])
     ww<-which(data1[includesubs,w]<12)
-    if(length(ww>0)){
+    if(length(ww) >0){
       alltask[ww,i]<-NA
       dropN <- dropN + sum(data1[includesubs,w] < 12)
     }
@@ -311,7 +310,7 @@ if (remove.Ntrial==1){ #See remove.Ntrial toggle
   for (i in 1:6){
     w<-which(colnames(data2)==nbit[i])
     ww<-which(data2[includesubs,w]<12)
-    if(length(ww>0)){
+    if(length(ww)>0){
       alltask[ww,(i+6)]<-NA
       dropN <- dropN + sum(data2[includesubs,w] < 12)
     }
