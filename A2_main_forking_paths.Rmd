@@ -12,7 +12,6 @@ always_allow_html: yes
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-
 ```
 
 `r Sys.time()`
@@ -398,10 +397,7 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
 ```
 
 ##Pirateplot
-This needs redoing!
-Ideally should code handedness as well as excluded points
-(Not sure how to do that!)
-NB current version does plot excluded points but does not distinguish them
+Produces a pirate plot of LI values with excluded datapoints marked in red.
 
 ```{r dopirate}
 myrow<-nrow(alltask)
@@ -1320,6 +1316,7 @@ It can be seen that List Generation has only a weak loading on Factor 1, whereas
 
 
 ![*Figure `r figcount`. Correlation between two factors from bifactor model, with left-handers shown in red, and bivariate outliers as circles*](factorplot_fixSentGen.png)
+
 In our original analysis with just 30 participants, a similar factor structure was observed, but there was a concern that this depended solely on a single left-handed participant (See Supplementary Material). With the larger sample of 37 participants, the bifactor solution was superior in all runs of a leave-one out analysis. The bifactor model was also the best-fitting model when only the 30 right-handers were included in the analysis. Nevertheless, it is clear from Figure `r figcount` that the two factors are highly intercorrelated, and the impression is that the factor solution is heavily affected by some influential cases. Cook's distance was computed to identify four bivariate outliers, which are marked with different symbols in Figure `r figcount`. Three of the outliers were left-handers and one was a right-hander. When the analysis was re-run omitting these cases, the single factor model gave a better fit in all but one run of a leave-one-out analysis. 
 
 
