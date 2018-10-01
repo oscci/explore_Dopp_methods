@@ -1233,7 +1233,7 @@ The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showe
 
 ## Laterality index data
 
-### Excluded trials from fTCD
+# Excluded trials from fTCD
 
 The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were a further `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
 
@@ -1249,9 +1249,10 @@ Figure `r figcount` shows a heatmap correlation matrix of the LI values for all 
 ![*Figure `r figcount`. Correlation matrix for LIs from the six language tasks given on two occasions*](heatmap.png)
 
 ## Structural Equation Modelling
-The LI data were entered into the SEM analysis to test hypotheses about the group mean LI values and covariances in LI values across subjects. Table 2 summarises the data on model fit.
+`r tabcount<-tabcount+1`
+The LI data were entered into the SEM analysis to test hypotheses about the group mean LI values and covariances in LI values across subjects. Table `r tabcount` summarises the data on model fit.
 
-### Step 1: Testing Stability of LI Values
+# Step 1: Testing Stability of LI Values
 `r tabcount<-tabcount+1`
 As shown in Table `r tabcount`, the fit of all the means-only models is very poor. This is to be expected, as these models ignore covariances, and, as indicated in Figure 6, there are substantial correlations both between and within tasks. Our interest at this point, however, is in the relative fit of different models of means, rather than overall model fit. The fully-saturated model (with free means/variances)  was compared to the task effect model, which fixed the means and variances for each task to be the same at each session (i.e. A1 = A2, B1 = B2, etc.). The Bayesian Information Criteria (BIC) for this comparison is shown in Table 2. The fit of the task effect model did not deteriorate significantly from that of the fully-saturated model. This supported the hypothesis that LI means for each task were stable across the two sessions.
 
@@ -1261,13 +1262,13 @@ kable(bigsummary,caption=mycaption)
 
 ```
 
-### Step 2: Testing population bias model
+# Step 2: Testing population bias model
 
 To demonstrate whether the means differed between tasks, the task effect model was compared to the population bias model, where means for all tasks are fixed to the same value. This may be seen as a null hypothesis that treats all tasks as equivalent indices of laterality. The population bias model gave significantly worse fit (see Table 2). Hence, there was strong evidence that the LI means differed between tasks.
 
 Two further sub-hypotheses were compared against task effect model; the first was the dorsal-ventral stream model. This comparison required us to categorise the language tasks. Tasks A and B were regarded as involving strong dorsal stream activity, task C as strong ventral stream activity, and tasks D, E and F as intermediate. This model gave significantly poorer fit than the task effect model – as is evident from a consideration of Figure `r (figcount-1)`, which shows relatively weak lateralisation for tasks A and B compared to task D. The lexical retrieval model did not fare any better. We regarded tasks B and D as involving strong lexical retrieval, whereas tasks A, C and F did not involve lexical retrieval, and task E was difficult to classify and so was considered as independent of the other measures. Again, this specific model gave a worse fit than the task effect model, indicating that, while laterality varied between tasks, it did not fit the specific pattern we had predicted. Note, however, that the pre-registered tests that we specified for both theories have some limitations, as we discuss further below.
 
-### Step 3: Testing models of covariances
+# Step 3: Testing models of covariances
 At Step 3 we tested whether the covariances between tasks had a single factor structure (person effect model) or a two factor structure (task by person effect model). Not surprisingly, given the strong correlations in Figure `r figcount`, both within and across tasks, the person effect model gave substantially better fit than the task effect model (see Table `r tabcount`); nevertheless, the overall fit of this model was poor. The task by person effect model, with two factors, gave significantly improved fit. 
 
 `r tabcount<-tabcount+1`
