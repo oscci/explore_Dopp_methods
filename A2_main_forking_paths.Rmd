@@ -75,10 +75,10 @@ run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
 run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
 
 nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
-  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
+#  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
 # c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
 # c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
-# c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+ c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
 # c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
 # c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
 tabcount         <- 0  #Start of counter for tables in Results section
@@ -1270,7 +1270,7 @@ The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showe
 The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were a further `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
 
 `r figcount<-figcount+1` 
-Figure `r figcount` **TO BE REDONE** shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
+Figure `r figcount` shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
 
 
 ![*Figure `r figcount`. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group to zero (omitting excluded datapoints, shown in red) (* p < .05, ** p < .01, *** p < .001).*](LIpirateA2.png)
