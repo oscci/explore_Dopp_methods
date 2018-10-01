@@ -161,9 +161,14 @@ if (run_behavioural==1){ #See run_behavioural toggle
   stargazer(behavdat[,rt.cols],type='text')
   
   #omit data
-  omit.cols<-grep('*.Omit',colnames(behavdat))
+  omit.cols<- grep('*.Omit',colnames(behavdat))
   print('Omit')
   stargazer(behavdat[,omit.cols],type='text')
+  #hack to ignore tasks A and D
+  omit.cols <- omit.cols[5:length(omit.cols)]
+  omit.data <- behavdat[ , omit.cols]
+  nevents <- c(90,90,90,45,90,90,90,45) # The number of events in each condition
+
  
   #Table now just includes tasks with % accurate and RT.
   #N words from tasks A and D are reported in main text
@@ -172,15 +177,16 @@ if (run_behavioural==1){ #See run_behavioural toggle
   behavdf<-data.frame(matrix(NA,nrow=4,ncol=10))
   colnames(behavdf)<-c('% Correct.1','% Correct.2','t','p','RT.1','RT.2','t','p','% Omitted.1','% Omitted.2')
  
-  #get means and SDs for word responses
+  #get means and SDs for word responses for tasks A and D
   mymeanw<-round(sapply(behavdat[,word.cols],mean,na.rm=TRUE),1)
   mysdw<-round(sapply(behavdat[,word.cols],sd,na.rm=TRUE),2)
+  #get means and SDs for accuracy and RT for tasks B, C, E and F
   mymeanp<-round(sapply(behavdat[,acc.cols],mean,na.rm=TRUE),1)
   mysdp<-round(sapply(behavdat[,acc.cols],sd,na.rm=TRUE),2)
   mymeanr<-round(sapply(behavdat[,rt.cols],mean,na.rm=TRUE),2)
   mysdr<-round(sapply(behavdat[,rt.cols],sd,na.rm=TRUE),2)
-  mymeano<-round(sapply(behavdat[,omit.cols],mean,na.rm=TRUE),2)
-  mysdo<-round(sapply(behavdat[,omit.cols],sd,na.rm=TRUE),2)
+  # get percentage of omitted trials for tasks B, C, E and F
+  mymeano <- round(colSums(omit.data, na.rm=TRUE) / (nevents*nrow(omit.data)) * 100, 2)
   
   for (i in 1:4){
     
@@ -1240,7 +1246,7 @@ sessionInfo()
 
 <!-- Next chunks taken from manuscript --> 
 ## Behavioural results
-We did not have specific predictions for the behavioural results, but present them here for completeness. For the List Generation and Sentence Generation tasks (tasks A - List Generation and D - Sentence Generation), the number of words spoken per trial was recorded. The number of words spoken in both tasks and sessions were very similar: For task A, session 1, mean = `r mymeanw[1]`, SD = `r mysdw[1]`, session 2, mean = `r mymeanw[3]`, SD = `r mysdw[3]`; For task D, session 1, mean = `r mymeanw[2]`, SD = `r mysdw[2]`, session 2, mean = `r mymeanw[4]`, SD = `r mysdw[4]`. A repeated measures ANOVA showed no significant effects of task: F(`r round(task.aov[1],0)`,`r round(task.aov[2],0)`) = `r round(task.aov[7],2)`, *p* = `r round(task.aov[9],3)`, or session: F(`r round(session.aov[1],0)`,`r round(session.aov[2],0)`) = `r round(session.aov[7],2)`, *p* = `r round(session.aov[9],3)` on the number of words spoken. Trials where participants failed to respond, or responded too early were excluded from analysis: these constituted less than 0.1% of trials.
+We did not have specific predictions for the behavioural results, but present them here for completeness. For the List Generation and Sentence Generation tasks (tasks A - List Generation and D - Sentence Generation), the number of words spoken per trial was recorded. The number of words spoken in both tasks and sessions were very similar: For task A, session 1, mean = `r mymeanw[1]`, SD = `r mysdw[1]`, session 2, mean = `r mymeanw[3]`, SD = `r mysdw[3]`; For task D, session 1, mean = `r mymeanw[2]`, SD = `r mysdw[2]`, session 2, mean = `r mymeanw[4]`, SD = `r mysdw[4]`. A repeated measures ANOVA showed no significant effects of task (F(`r round(task.aov[1],0)`,`r round(task.aov[2],0)`) = `r round(task.aov[7],2)`, *p* = `r round(task.aov[9],3)`), but there was a significant effect of session (F(`r round(session.aov[1],0)`,`r round(session.aov[2],0)`) = `r round(session.aov[7],2)`, *p* = `r round(session.aov[9],3)`) on the number of words spoken. Trials where participants failed to respond, or responded too early were excluded from analysis: these constituted less than 0.1% of trials.
 
 For the remaining tasks, performance was assessed in terms of percentage trials correct and reaction time (RT). Table `r (tabcount+1)` shows mean (SD) for both sessions.
 
