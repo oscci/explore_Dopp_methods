@@ -1,0 +1,1300 @@
+---
+title: "Analysis for A2 writeup"
+author: "Dorothy Bishop/ Zoe Woodhead / Paul Thompson"
+date: "29 Sep 2018"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+```
+
+`r Sys.time()`
+
+## Background
+Original protocol for project is here: <https://osf.io/tkpm2/registrations/>
+
+See Dopp_explore_log.RMd for more background on how Modeling was developed.
+
+Source reference is: Kline, R. B. (2011). Principles and practice of structural equation Modeling, 3rd edition. New York: Guilford Press.
+Kline has detailed discussion of testing for fit: is against absolute cutoffs, though notes cutoffs that have been proposed on basis of simulation studies.
+
+RMSEA is absolute index of (badness of) Model fit: aim for below .08.
+This value decreases with more DF (greater parsimony) or larger sample size.
+ 
+Comparative fit index (CFI) measures relative improvement in fit of Model over baseline Model. 
+Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CFI > .95 (see Kline p 208)
+
+N.B. This version of script allows options in terms of which participants are included and which measure of LI is used. Values from the selected analysis are inserted into a Results section (see end of script). This allows for alternative approaches to be compared in Appendix.
+
+##Chunks of code for setting packages and reading in data 
+from SEM2_maxLikelihood_realdata.R
+```{r packages, warning=FALSE, message=FALSE}
+#Needs OpenMx, which you get with following command (not CRAN)
+#Hmm - having problems with OpenMx - now using Cran version
+
+#source('https://openmx.ssri.psu.edu/software/getOpenMx.R')
+require(tidyverse)
+require(OpenMx)
+require(stargazer) #simple commands for nice tables
+require(semTools) #for fit measures
+library(DiagrammeR) #for the diagram
+require(stringr)
+require(data.table)
+library('devtools')
+library("reshape2")
+library("yarrr")
+library(DiagrammeRsvg)
+library(magrittr)
+library(svglite)
+library(rsvg)
+library(knitr)
+
+########### Set toggles before running! ################################################################
+RHonly            <- 0 # Set to 0 if want to include L handers
+Init30only        <- 1 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
+#removesubs       <- c(10,22,26,28) #specific IDs to remove; set to zero to remove none
+removesubs        <- 0
+run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group
+run_behavioural   <- 1 # Set to 1 to analyse behavioural data
+usemean           <- 0 # Set to 0 to analyse original peak-based LI values
+remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials
+tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model
+run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data
+run_pirate        <- 1 # Set to 1 to run pirate plot of LI data
+do_corrheat       <- 1 # Set to 1 to run correlation matrix heatmap plot
+run_pathdrop      <- 1 # Set to 1 to run pathdrop SEM analysis
+run_covexplore    <- 1 # Set to 1 to run covariance exploration analysis
+run_drawpaths     <- 1 # Set to 1 to run graphviz paths plot
+run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
+run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
+
+nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
+  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
+# c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
+# c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
+# c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+# c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
+# c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
+tabcount         <- 0  #Start of counter for tables in Results section
+figcount         <- 4  #Start of counter for figs in Results section
+
+########################################################################################################
+
+```
+##Code for setting directory flexibly
+```{r definedir}
+#This not currently used but should be easy to adapt if needed. 
+#Script currently assumes working directory is already set to current folder where files reside
+thisuser <-'dorothybishop'
+thisdrive<- '' #may need to set this to 'C:' for PC users
+#readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/project A2/')
+readdir<-'' #use this if working directory set to folder with all the data
+```
+
+##Participant demographic data
+```{r participants}
+
+particdat<-read.csv('A2_Participant_Info.csv')
+rhanded<-which(particdat$handedness=='R')
+particdat$handcode<-2
+particdat$handcode[rhanded]<-1
+#Handcode needed when numeric value used for colour in plots
+
+
+if (Init30only==1) {# original sample from prereg analysis
+  print('First 30 subjects only included in analysis')
+  particdat<-particdat[1:30,]
+}
+
+if (RHonly==1){ #See RHonly toggle
+  print('R handers only included in analysis')
+  particdat <- filter(particdat,handedness=='R')
+}
+if (removesubs>0){
+particdat<-particdat[-removesubs,] #NB defined by row number, NOT subject ID
+}
+if(run_participants==1){ #See run_participants toggle
+  #Participant descriptors reported in paper
+  print('Gender x handedness')
+ print( table(particdat$Gender,particdat$handedness))
+  ageyr<-particdat$Age_m/12
+  print('Age in yr')
+  print(summary(ageyr))
+  print('SD age')
+  sd(ageyr)
+}
+
+```
+
+##Task performance data
+```{r behaviouraldata}
+
+if (run_behavioural==1){ #See run_behavioural toggle
+  
+  behavdat<-read.csv('A2_Behavioural_Data.csv')
+  behavdat<-behavdat[particdat$ID,] #need to remove one S who is in this file but not tested
+  
+ #NB Do not need to specify exclusions by sample or handedness here.
+  #Participant ID has already incorporated there
+  
+  #word data
+  word.cols<-grep('*.Words',colnames(behavdat))
+ tab1a<- stargazer(behavdat[,word.cols],type='text')
+  
+  #accuracy data
+  acc.cols<-grep('*.Acc', colnames(behavdat))
+  print('Percentages correct')
+  stargazer(behavdat[,acc.cols],type='text')
+  
+  #RT data
+  rt.cols<-grep('*.RT', colnames(behavdat))
+  print('RT')
+  stargazer(behavdat[,rt.cols],type='text')
+  
+  #omit data
+  omit.cols<-grep('*.Omit',colnames(behavdat))
+  print('Omit')
+  stargazer(behavdat[,omit.cols],type='text')
+ 
+  #Table now just includes tasks with % accurate and RT.
+  #N words from tasks A and D are reported in main text
+  
+  #make data frame to hold data formatted for paper
+  behavdf<-data.frame(matrix(NA,nrow=4,ncol=10))
+  colnames(behavdf)<-c('% Correct.1','% Correct.2','t','p','RT.1','RT.2','t','p','% Omitted.1','% Omitted.2')
+ 
+  #get means and SDs for word responses
+    mymeanw<-round(sapply(behavdat[,word.cols],mean,na.rm=TRUE),1)
+  mysdw<-round(sapply(behavdat[,word.cols],sd,na.rm=TRUE),2)
+  mymeanp<-round(sapply(behavdat[,acc.cols],mean,na.rm=TRUE),1)
+  mysdp<-round(sapply(behavdat[,acc.cols],sd,na.rm=TRUE),2)
+  mymeanr<-round(sapply(behavdat[,rt.cols],mean,na.rm=TRUE),2)
+  mysdr<-round(sapply(behavdat[,rt.cols],sd,na.rm=TRUE),2)
+    mymeano<-round(sapply(behavdat[,omit.cols],mean,na.rm=TRUE),2)
+  mysdo<-round(sapply(behavdat[,omit.cols],sd,na.rm=TRUE),2)
+  
+    for (i in 1:4){
+    
+    behavdf[i,1]<-paste0(mymeanp[i],' (',mysdp[i],')')
+    behavdf[i,2]<-paste0(mymeanp[(i+4)],' (',mysdp[i+4],')')
+    behavdf[i,5]<-paste0(mymeanr[i],' (',mysdr[i],')')
+    behavdf[i,6]<-paste0(mymeanr[(i+4)],' (',mysdr[i+4],')')
+    behavdf[i,9]<-mymeano[i]
+    behavdf[i,10]<-mymeano[(i+4)]
+    thist<-t.test(behavdat[,acc.cols[i]],behavdat[,acc.cols[i+4]],paired=TRUE)
+    behavdf[i,3]<-round(thist$statistic,2)
+    behavdf[i,4]<-round(thist$p.value,3)
+    thist2<-t.test(behavdat[,rt.cols[i]],behavdat[,rt.cols[i+4]],paired=TRUE)
+    behavdf[i,7]<-round(thist2$statistic,2)
+    behavdf[i,8]<-round(thist2$p.value,3)
+  }
+  rownames(behavdf)<-c('B. Phonological Decision','C. Semantic Decision','E. Sentence Comprehension','F. Syntactic Decision')
+  #NB row/cols from table are transposed before outputting
+  write.table(t(behavdf), "Behavtable.txt", sep="\t",row.names=TRUE,quote=FALSE) #Currently this is table 1
+}
+```
+
+```{r behavaov}
+  #Do Anova on words for tasks A and D - need long form file
+#Output from the aov is incorporated in the text for methods
+  nsub<-nrow(behavdat)
+  subvec<-rep(1:nsub,4)
+  wordvec<-c(behavdat$A1.Words,behavdat$A2.Words,behavdat$D1.Words,behavdat$D2.Words)
+  taskvec<-c(rep(1,nsub*2),rep(0,nsub*2))
+  timevec<-c(rep(1,nsub),rep(2,nsub),rep(1,nsub),rep(2,nsub))
+  word.df<-data.frame(cbind(subvec,wordvec,taskvec,timevec))
+  colnames(word.df)<-c('sub','word','task','time')
+  word.df$sub<-as.factor(word.df$sub)
+  myaov<-summary(aov(word~(task*time)+ Error(sub/(task*time)),data=word.df))
+  task.aov <-unlist(myaov$'Error: sub:task')
+  session.aov <-unlist(myaov$'Error: sub:time')
+```
+
+##Code for reading and reshaping LI data
+N.B. Can select to use original LI values based on peak, or LI values from mean in POI.
+
+```{r readdata}
+#read in data from sessions 1 and 2, having saved as .csv
+#NB. Need to set working directory to location of data files - or else specify path
+
+data1<-read.csv('Results_Session1.csv')
+data2<-read.csv('Results_Session2.csv')
+data1<-data1[particdat$ID,]
+data2<-data2[particdat$ID,]
+
+
+
+alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
+             select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
+
+if(usemean==1){ #See usemean toggle
+  alltaskpeak <- alltaskall # Keep peak values for comparison
+  alltaskall <- cbind(select(data1,A1.LI_mean,B1.LI_mean,C1.LI_mean,D1.LI_mean,E1.LI_mean,F1.LI_mean),
+                      select(data2,A2.LI_mean,B2.LI_mean,C2.LI_mean,D2.LI_mean,E2.LI_mean,F2.LI_mean))
+}
+
+mylabels<-c('ListGen1','PhonDec1','SemDec1','SentGen1','SentComp1','Jabber1',
+            'ListGen2','PhonDec2','SemDec2','SentGen2','SentComp2','Jabber2')
+myshortlab<-c('ListGen','PhonDec','SemDec','SentGen','SentComp','Jabber')
+mylonglab <-c('List Generation','Phonological Decision','Semantic Decision',
+              'Sentence Generation','Sentence Comprehension','Syntactic Decision')
+
+
+colnames(alltaskall)<-mylabels
+head(alltaskall)
+
+
+
+```
+
+
+##Code for identifying exclusions and substituting NA based on SE
+Please see justification in Methods. Outliers based on SE of LI rather than value of LI. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
+
+```{r excludeSE}
+
+alltask<-alltaskall
+#create a new copy where the outliers will be coded as NA
+
+allse <- cbind(select(data1,A1.se,B1.se,C1.se,D1.se,E1.se,F1.se),
+             select(data2,A2.se,B2.se,C2.se,D2.se,E2.se,F2.se))
+
+if (usemean==1){ #See usemean toggle
+  allse <- cbind(select(data1,A1.mean_se,B1.mean_se,C1.mean_se,D1.mean_se,E1.mean_se,F1.mean_se),
+                 select(data2,A2.mean_se,B2.mean_se,C2.mean_se,D2.mean_se,E2.mean_se,F2.mean_se))
+}
+
+
+
+myse<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
+        allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
+
+Q3<-quantile(myse,.75,na.rm=TRUE)
+Q1<-quantile(myse,.25,na.rm=TRUE)
+Qlimit<-Q3+2.2*(Q3-Q1)
+secols<-colnames(allse)
+dropSE<-0 #initialise counter
+
+for (i in 1:12){
+  w<-which(allse[,i]>Qlimit)
+  if (length(w)>0){
+    alltask[w,i]<-NA
+    dropSE <- dropSE + sum(is.na(alltask[,i]))
+  }
+}
+
+print(paste('Dropped because high SE, N = ',dropSE))
+```
+
+```{r excludelowtrials}
+#Now remove those with fewer than 12 trials in a condition - this matches prereg
+if (remove.Ntrial==1){ #See remove.Ntrial toggle
+  
+  nbit<-c('A1.N','B1.N','C1.N','D1.N','E1.N','F1.N')
+  includesubs<-1:nrow(data1)
+
+  dropN<-0 #initialise counter
+  for (i in 1:6){
+    w<-which(colnames(data1)==nbit[i])
+    ww<-which(data1[includesubs,w]<12)
+    if(length(ww>0)){
+      alltask[ww,i]<-NA
+      dropN <- dropN + sum(data1[includesubs,w] < 12)
+    }
+  }
+  
+  nbit<-c('A2.N','B2.N','C2.N','D2.N','E2.N','F2.N')
+  for (i in 1:6){
+    w<-which(colnames(data2)==nbit[i])
+    ww<-which(data2[includesubs,w]<12)
+    if(length(ww>0)){
+      alltask[ww,(i+6)]<-NA
+      dropN <- dropN + sum(data2[includesubs,w] < 12)
+    }
+  }
+  print(paste('Dropped because < 12 trials, N = ',dropN))  
+  #create text version of number to report in Results
+  mynumbers<-c('none','one','two','three','four','five','six','seven','eight','nine')
+  dropNword<-mynumbers[(dropN+1)]
+  dropSEword<-mynumbers[(dropSE+1)]
+}
+
+#Now count missing data from either method, ie those coded NA
+ w<-which(is.na(alltask)) #this is a long vector, col1, col2 etc 
+ #to find which column has NAs need to cut at nsub
+ ww<-w/37
+missdata<-round((.5+ww),0) #columns with missing datapoint from either mode of exclusion
+
+#We had previously reported in text the N missing per task, but this is evident in plot so not needed
+#(Do-able in code but not easy!)
+
+```
+##Check correlation with peak LI values
+```{r peakcorr}
+if (usemean == 1){ # Only runs if we're using mean values for LI
+  allmeanLI <- numeric(0)
+  allpeakLI <- numeric(0)
+  for (i in 1:dim(alltask)[2]){
+    allmeanLI <- c(allmeanLI, alltask[ ,i])
+    allpeakLI <- c(allpeakLI, alltaskpeak[,i])
+  }
+  methodscor<-round(cor(allmeanLI, allpeakLI, use='pairwise.complete.obs', method='spearman'),3) #Option: can switch method to 'spearman' or 'pearson'
+ print(paste0('Correlation between peak and mean method for LI = ',methodscor))
+}
+```
+
+
+
+
+##Show means etc for tasks with time1 and time2 adjacent
+```{r stargaze}
+
+stargazer(alltask[,c(1,7,2,8,3,9,4,10,5,11,6,12)],type='text',na.rm=TRUE)
+
+```
+
+##Check normality of data
+Have a look at the densities and do Shapiro-Wilks test and QQ plot
+Plots will be written to the working directory, called densities 1-6
+```{r normalcheck}
+
+if (run_normalcheck==1){ # See run_normalcheck toggle
+ shapdf<-data.frame(matrix(NA,nrow=12,ncol=3))
+  colnames(shapdf)<-c('task','session','p')
+  myrow<-0 
+  for (i in 1:6){ # Loop through tasks
+    # png(filename=paste0("densities_",i,".png"))
+    par(mfrow=c(2,2))
+    
+    for (j in 1:2){ # Loop through sessions
+      myrow<-myrow+1
+      offset<- 6*(j-1)
+      tempdata<-alltask[,(i+offset)]
+      myshap<-shapiro.test(tempdata)
+      plot(density(tempdata,na.rm=TRUE),main=mylabels[(i+offset)],xlim=c(-6,8),ylim=c(0,.3))
+      text(-4,.1,paste('mean = \n',round(mean(tempdata,na.rm=TRUE),2)))
+      
+      ## Plot using a qqplot
+      qqnorm(tempdata);qqline(tempdata, col = 2)
+      text(.4,0,paste('Shapiro\np = ',round(myshap$p.value,3)))
+     shapdf[myrow,1]<-LETTERS[i]
+      shapdf[myrow,2]<-j
+      shapdf[myrow,3]<-round(myshap$p.value,3)
+    }
+    # dev.off()
+  }
+  #Create text for Results section
+  n.nonnormal<-length(which(shapdf$p<.05))
+  n.nonnormal.text<-paste0(mynumbers[1+n.nonnormal],' of 12 conditions were')
+  if (n.nonnormal==1){
+     n.nonnormal.text<-paste0('only' ,mynumbers[1+n.nonnormal],' of 12 conditions was')
+}
+}
+```
+##Pirateplot
+This needs redoing!
+Ideally should code handedness as well as excluded points
+(Not sure how to do that!)
+NB current version does plot excluded points but does not distinguish them
+
+```{r dopirate}
+myrow<-nrow(alltask)
+
+if (run_pirate == 1){ # See run_pirate toggle
+  
+  #First do one sample t-tests to check if sig different from zero
+  tdf<-data.frame(matrix(NA,nrow=12,ncol=5))
+  colnames(tdf)<-c('t','p','labelht','label','task')
+  ilist<-c(1,7,2,8,3,9,4,10,5,11,6,12)
+  
+  for (j in 1:12){
+    i<-ilist[j]
+    myt<-t.test(alltask[,i],alternative='greater')
+    tdf[j,1]<-round(myt$statistic,2)
+    tdf[j,2]<-round(myt$p.value,3)
+    tdf[j,3]<-max(alltask[,i],na.rm=TRUE)+1
+    tdf[j,4]<-''
+    if(myt$p.value<.05){tdf[j,4]<-"*"}
+    if(myt$p.value<.01){tdf[j,4]<-"**"}
+    if(myt$p.value<.001){tdf[j,4]<-"***"}
+    tdf[j,5]<-colnames(alltask)[i]
+  }
+  
+  # Melt cleverly reshapes LI_data into a long format using ID 
+  # (the only factor) as the categorical variable    
+  LI_long <- melt(alltaskall) #version with outliers 
+  outliermark<-is.na(alltask)
+  LI_long$ID<-rep(1:myrow,6)
+  LI_long$Session<-c(rep(1,myrow*6),rep(2,myrow*6))
+  long_task_list <- vector() # create an empty vector
+  for (t in 1:6){
+    long_task_list <- c(long_task_list, rep(myshortlab[t], myrow))
+  }
+  LI_long$Task<- long_task_list
+  #Need task code because otherwise pirate plot will order tasks alphabetically
+  LI_long$Taskcode<-c(rep(c(rep('A',nsub),rep('B',nsub),rep('C',nsub),rep('D',nsub),
+                      rep('E',nsub),rep('F',nsub)),2))
+                      
+  colnames(LI_long)[2]<-'LI'
+  
+ png(filename="LIpirateA2.png", width=1500, height=1200,res=300)
+
+  # Make pirate plot
+  pirateplot(formula = LI ~ Session + Taskcode,
+             data = LI_long,
+             main = "",
+             ylab = "LI Value",
+             ylim = c(-3, 7),
+             point.o=.5,inf.f.o=.1,inf.b.o=0,
+             jitter.val=.075)
+  
+  abline(h=0,lty=2)
+  
+  xmarker_nums <- c(1,2,4,5,7,8,10,11,13,14,16,17) # For plotting x-axis
+  # Mark significant differences (excluding outlier data) with black astrisks
+  text(xmarker_nums, y=as.numeric(tdf[,3]), labels=tdf[,4],font=2, cex=1.3)
+  
+  # Mark outlier values as red dots
+ #points(outlier_markers, y=outlier_values, type = "p", pch = 16, col="red")
+
+
+ dev.off()
+}
+
+
+```
+
+![Pirate plot](LIpirateA2.png)
+
+
+##Correlation matrix as heatmap
+```{r corrheat}
+
+if (do_corrheat == 1){ # See do_corrheat toggle
+   png(filename="heatmap.png", width=1500, height=1500,res=300)
+  cormat<-round(cor(alltask[,ilist], use="pairwise.complete.obs", method="pearson"),2)
+  rownames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
+  colnames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
+  
+  #cormat values are referenced in main Results text
+  #We need test-retest range, 
+  test.retest.cor<-c(cormat[1,2],cormat[3,4],cormat[5,6],cormat[7,8],cormat[9,10],cormat[11,12])
+  get_upper_tri <- function(cormat){
+    cormat[lower.tri(cormat)]<- NA
+    return(cormat)
+  }
+  
+  upper_tri <- get_upper_tri(cormat)
+  
+  melted_cormat <- melt(upper_tri,na.rm=T)
+  #for some reason NA values remain: need to remove these or they create grey cells
+  #w<-which(is.na(melted_cormat[,3]))
+  #melted_cormat<-melted_cormat[-w,]
+  
+  colnames(melted_cormat)[1:2]<-c('Var1','Var2') #names of cols 1 and 2
+  # Create correlation heatmap using ggplot
+  ggheatmap <- ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+    geom_tile(colour = "white")+
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                         midpoint = 0, limit = c(-1,1), space = "Lab", 
+                         name="Pearson\nCorrelation") +
+    theme_minimal()+ 
+    theme(axis.text.x = element_text(vjust = 1, 
+                                     size = 12, hjust = 0.5),
+          axis.text.y = element_text(vjust = 0.5, 
+                                     size = 12, hjust = 1))+
+    coord_fixed()
+  
+  #add some formatting
+  ggheatmap + 
+    geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      axis.ticks = element_blank(),
+      legend.justification = c(1, 0),
+      legend.position = c(0.5, 0.7),
+      legend.direction = "horizontal")+
+    guides(fill = guide_colorbar(barwidth = 9, barheight = 1.5,
+                                 title.position = "top", title.hjust = 0.5))
+  
+  dev.off()
+}
+```
+
+![Heatmap](heatmap.png)
+## Structural equation Models: 
+
+```{r setupbigsummary}
+#We'll create a Table, bigsummary, to hold fit stats for different Models
+bigsummary <- data.frame(matrix(NA,nrow=1,ncol=10))
+bigsummary[1,2]<-0 #add a value so we recognise empty dataframe when adding first row
+colnames(bigsummary)<-c('-2LL','df','CFI','RMSEA','Comparison','chi.diff','chi.df','p','BIC','Summary')
+
+#Also important to clear previous models to avoid errors
+#rm(Model1fit)
+#rm(Model2fit)
+
+```
+
+```{r define.addbig}
+#This function will add a row to bigsummary for each new Model
+addbig <- function(thissummary,mycomp,thiscomment,thisrowname) {
+  
+  myLL<-round(thissummary$Minus2LogLikelihood,1)
+  mydf<-thissummary$degreesOfFreedom
+  mychi<-round(thissummary$Chi,1)
+  mydfdiff<-thissummary$ChiDoF
+  myp<-round(thissummary$p,3)
+  if (myp < 0.001){myp<-'<.001'}
+  if (myp==1){myp<-NA} #for first model
+  myBIC<- round(thissummary$BIC.Mx,1)
+  myCFI<-round(thissummary$CFI,3)
+  myRMSEA<-round(thissummary$RMSEA,3)
+  
+  thisrow<-nrow(bigsummary)
+  if(bigsummary[thisrow,2]>0){thisrow<-thisrow+1}
+  bigsummary[thisrow,]<-c(myLL,mydf,myCFI,myRMSEA,mycomp,mychi,mydfdiff,myp,myBIC,thiscomment)
+  rownames(bigsummary)[thisrow]<-thisrowname
+  return(bigsummary)
+}
+```
+
+##Try with different order of variables
+
+```{r reordertasks}
+#Reassuring that reordering variables does not affect model fit
+#However, it does affect the model structure.
+#The first variable in the list will have fixed paths to factor A (1) and B (0)
+
+if (tryreorder==1){ #See tryreorder toggle
+  alltask<-alltask[,nuorder] #See nuorder toggle
+  alltaskall<-alltaskall[,nuorder]
+  mylabels<-mylabels[nuorder]
+  myshortlab<-myshortlab[nuorder[1:length(myshortlab)]]
+    mylonglab<-mylonglab[nuorder[1:length(mylonglab)]]
+  myfixed<-myshortlab[1]
+}
+
+```
+
+###Model 1: Free Means and Vars Model 
+(from fig 4 in prereg document)
+
+This acts as baseline: it just Models means and variance: no relation between variables, 
+and no consistency in LI over time.
+
+We can then test how other Models fit when we introduce constraints by
+equalising paths or by Modeling covariances.
+
+N.B. I previously described this as a saturated Model, but the fully saturated Model includes covariances
+(which are all zero) and so has more DF. The free means Model can be evaluated against the fully saturated one, using mxRefModels to specify the saturated Model. When that is done, we get rmsea and CFI provided for relative fit.
+Start with Models of means
+
+```{r freemeans_Model1}
+# residual variances
+dataRaw      <- mxData( observed=alltask, type="raw" )
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=TRUE, values=rep(1,12), #estimate error variances; free to vary by test and occasion
+                        labels=c("e1","e2","e3","e4","e5","e6","e7","e8","e9","e10","e11","e12") )
+# each has a different name, meaning they are estimated with different values
+# means
+means        <- mxPath( from="one", to=mylabels, arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =mylabels ) 
+myModel1 <- mxModel("Free means Model", type="RAM",
+                    manifestVars=mylabels,
+                    dataRaw, resVars,  means)
+Model1Fit <- mxRun(myModel1)
+summary.Model1<-summary(Model1Fit, refModels=mxRefModels(Model1Fit, run = TRUE)) #gives CFI, TLI, RMSEA if refModels specified - we won't use these as they aren't meaningful here
+summary.Model1
+#Define labels to add to bigtable
+summary.Model1$Chi<- NA
+summary.Model1$ChiDoF<-  NA
+summary.Model1$p<- 1
+summary.Model1$RMSEA<- NA
+summary.Model1$BIC.Mx<- NA
+summary.Model1$CFI<- NA
+mycomp<-'-'
+thiscomment<-'Free means/vars'
+thisrowname<-'1.Independent data'
+bigsummary<-addbig(summary.Model1,mycomp,thiscomment,thisrowname) 
+#Note that the Model has 24 parameters (i.e. 12 means and 12 vars), but the Saturated Model has 90, as it
+#also includes all the covariances between 12 variables.
+
+```
+
+N.B. The summary output shows estimates of variances (e) and means (M). Note that the variance is particularly high for SentGen2. Also v low variance for ListGen1
+
+###Model 2: Tweak free means Model to check stability of means
+ Means and variances set to be the same for time1 and time2 for each measure. 
+ N.B. for this model and all subsequent means models, OpenMx gives a warning about possible misspecification of the model. This is because covariances are omitted from the model, but are included in the reference model. I think this need not be a problem, as we are anticipating v poor model fit, precisely because we ignore covariances, when the correlation matrix makes it clear that we need to model them. The models here, though, are intended just to compare between different theories about means, and to compare models that all suffer from this same deficiency. 
+ 
+ 
+ This is achieved by giving the path the same name, e.g. meanA for A1 and A2
+ N.B. This is not same as test-retest reliability: as covariances not considered.
+ We're just testing if the mean values are similar time 1 and time 2, not whether same people are high or low.
+ 
+
+```{r Model2}
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=TRUE, values=rep(1,12), #estimate error variances; same for each test on time 1 and time 2
+                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
+# means
+means        <- mxPath( from="one", to=mylabels, arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels = c(myshortlab,myshortlab) ) 
+
+myModel2 <- mxModel("Stability Model", type="RAM",
+                     manifestVars=mylabels,
+                     dataRaw, resVars,  means)
+
+Model2Fit <- mxRun(myModel2)
+summary.Model2<-summary(Model2Fit, refModels=mxRefModels(Model2Fit, run = TRUE)) 
+summary.Model2
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2
+test.1.2<-mxCompare(Model1Fit,Model2Fit)
+summary.Model2$Chi<-test.1.2$diffLL[2]
+summary.Model2$ChiDoF<-test.1.2$diffdf[2]
+summary.Model2$p<-test.1.2$p[2]
+mycomp<-'Model 1'
+thiscomment<-'Equal means/vars'
+thisrowname<-'2. Stable task effect'
+bigsummary<-addbig(summary.Model2,mycomp,thiscomment,thisrowname) 
+
+# Make a message (pmessage) that tells us what the Model comparison tells us. 
+# Here we are looking for a nonsignificant p-value: that tells us that despite having fewer estimated parameters, fit does not suffer
+# df is N observations (nsub*nvalues = 28*12) minus N estimated parameters (ep)
+pmessage<-'Model 2 fit deteriorates relative to Model 1! Means differ across test occasions' #default message
+if(test.1.2$p[2]>.05){
+  pmessage <- 'Model 2 fit does not deteriorate relative to Model 1; ie means/vars equivalent across test occasions'}
+
+pmessage
+
+```
+###Model 3: Model where all tests equivalent
+
+More extreme version of stability Model, where all means and all vars are the same.
+This tests (rather implausible!) hypothesis that all measures are similarly lateralised. It is equivalent to the 'population bias' Model.
+We expect fit to worsen relative to stability Model - assuming measures differ in extent of laterality.
+```{r Model3}
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=TRUE, values=rep(1,12), #estimate error variances; same for each test on time 1 and time 2
+                        labels=c("e1","e1","e1","e1","e1","e1","e1","e1","e1","e1","e1","e1") )
+# means
+means        <- mxPath( from="one", to=mylabels, arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =c("meanA","meanA","meanA",
+                                  "meanA","meanA","meanA","meanA","meanA","meanA",
+                                  "meanA","meanA","meanA") ) 
+myModel3 <- mxModel("Model3", type="RAM",
+                     manifestVars=mylabels,
+                     dataRaw, resVars,  means)
+
+Model3Fit <- mxRun(myModel3) #The mxRun command evaluates the Model.
+summary.Model3<-summary(Model3Fit, refModels=mxRefModels(Model3Fit, run = TRUE)) 
+summary.Model3
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2
+#NB Model with most DF is last; Model 3 has many DF because no task-specific terms
+
+test.2.3<-mxCompare(Model2Fit,Model3Fit)
+summary.Model3$Chi<-test.2.3$diffLL[2]
+summary.Model3$ChiDoF<-test.2.3$diffdf[2]
+summary.Model3$p<-test.2.3$p[2]
+mycomp<-'Model 2'
+thiscomment<-'All means/vars equal'
+thisrowname<-'3. Population bias'
+bigsummary<-addbig(summary.Model3,mycomp,thiscomment,thisrowname) 
+
+#We predict that means differ, in which case p will be < .05
+pmessage<-'Means do not differ between tasks' #default
+if(test.2.3$p[2]<.05){pmessage <- 'Means differ between tasks'}
+
+pmessage
+
+```
+###Model 4: Test dorsal/ventral/mixed Model
+
+This proposes pattern of means different for taskAB, C and DEF (Model 2a in prereg document).
+Model predicts strength of laterality will be: AB > DEF > C.
+We test this by equating means and variances for AB and DEF.
+
+```{r dorsalventral}
+# Sets order of tasks AB, DEF and C for Model 4 prediction
+model4_resVars_order <- c("e1","e1","e2","e3","e3","e3","e1","e1","e2","e3","e3","e3")
+model4_labels_order  <- c("meanAB","meanAB","meanC",
+                                  "meanDEF","meanDEF","meanDEF",
+                                  "meanAB","meanAB","meanC",
+                                  "meanDEF","meanDEF","meanDEF")
+
+# Changes order of tasks AB, DEF and C for Model 4 prediction if the tasks have been reordered
+if (tryreorder == 1){ # See tryreorder toggle
+  model4_resVars_order <- model4_resVars_order[nuorder]
+  model4_labels_order <- model4_labels_order[nuorder]
+}
+
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=TRUE, values=rep(1,12), #estimate error variances; same for each test on time 1 and time 2
+                        labels= model4_resVars_order)
+# means
+means        <- mxPath( from="one", to=mylabels, arrows=1,
+                        free=TRUE, values=rep(1,12),
+                        labels = model4_labels_order) 
+
+myModel4 <- mxModel("Model4", type="RAM",
+                     manifestVars=mylabels,
+                     dataRaw, resVars,  means)
+
+Model4Fit <- mxRun(myModel4) #The mxRun command evaluates the Model.
+summary.Model4<-summary(Model4Fit, refModels=mxRefModels(Model4Fit, run = TRUE)) 
+summary.Model4
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+test.2.4<-mxCompare(Model2Fit,Model4Fit)
+summary.Model4$Chi<-test.2.4$diffLL[2]
+summary.Model4$ChiDoF<-test.2.4$diffdf[2]
+summary.Model4$p<-test.2.4$p[2]
+mycomp<-'Model 2'
+thiscomment<-'AB>DEF>C'
+thisrowname<-'4.Dorsal/ventral stream'
+bigsummary<-addbig(summary.Model4,mycomp,thiscomment,thisrowname) 
+
+#Add some output showing the mean estimates and testing if they fit the expected pattern
+my4<-summary(Model4Fit)$parameters[c(4,6,5),c(1,5,6)]
+qmessage<-'Model predicts AB > DEF > C'
+rmessage<-'Not confirmed'
+if((my4[1,2]>my4[3,2])&&(my4[3,2]>my4[2,2])){rmessage<-'Confirmed'}
+
+pmessage
+qmessage
+rmessage
+my4
+
+```
+###Model 5: Lexical retrieval Model
+Hypothesis A.2 Strength of lateralization depends on the extent to which tasks require lexical retrieval (more lexical retrieval = stronger left lateralization).
+
+Operationalised by setting means equal for tasks BD, ACF and E (Model 5)
+
+```{r lexical retrieval}
+# Sets order of tasks BD, ACF and E for Model 5 prediction
+model5_resVars_order <- c("e1","e2","e1","e2","e3","e2","e1","e2","e1","e2","e3","e2")
+model5_labels_order  <- c("meanACF","meanBD","meanACF",
+                          "meanBD","meanE","meanACF",
+                          "meanACF","meanBD","meanACF",
+                          "meanBD","meanE","meanACF")
+
+# Changes order of tasks AB, DEF and C for Model 4 prediction if the tasks have been reordered
+if (tryreorder == 1){ # See tryreorder toggle
+  model5_resVars_order <- model5_resVars_order[nuorder]
+  model5_labels_order <- model5_labels_order[nuorder]
+}
+
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=TRUE, values=rep(1,12), #estimate error variances; same for each test on time 1 and time 2
+                        labels=model5_resVars_order)
+# means
+means        <- mxPath( from="one", to=mylabels, arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =model5_labels_order) 
+
+myModel5 <- mxModel("Model5", type="RAM",
+                     manifestVars=mylabels,
+                     dataRaw, resVars,  means)
+
+Model5Fit <- mxRun(myModel5) #The mxRun command evaluates the Model.
+summary.Model5<-summary(Model5Fit, refModels=mxRefModels(Model5Fit, run = TRUE)) 
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+
+test.2.5<-mxCompare(Model2Fit,Model5Fit)
+summary.Model5$Chi<-test.2.5$diffLL[2]
+summary.Model5$ChiDoF<-test.2.5$diffdf[2]
+summary.Model5$p<-test.2.5$p[2]
+summary.Model5
+
+mycomp<-'Model 2'
+thiscomment<-'BD>ACF'
+thisrowname<-'5.LexicalRetrieval'
+bigsummary<-addbig(summary.Model5,mycomp,thiscomment,thisrowname) 
+
+
+#Add some output showing the mean estimates and testing if they fit the expected pattern
+my5<-summary(Model5Fit)$parameters[c(5,4,6),c(1,5,6)] #pull out just the rows/cols of interest
+qmessage<-'Model predicts BD > ACF'
+rmessage<-'Not confirmed'
+if(my5[1,2]>my5[2,2]){rmessage<-'Confirmed'}
+
+pmessage
+qmessage
+rmessage
+my5
+
+```
+
+
+
+##SEM Models including covariances
+###Model 6: Single factor Model (means equalized for T1 and T2).
+
+If tasks are correlated (as they are) this will give a better fit than the preceding Models, which only looks at means.
+It is necessary to scale the paths from observed variables to latent factor in terms of one of the observed variables. We chose the first variable. NB I have checked that choice does not affect the factor solution.
+
+```{r Factor1}
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
+
+# latent variance - Factor1 is the single factor
+latVar       <- mxPath( from="Factor1", arrows=2,
+                        free=T, values=1, labels ="varFactor1" )
+
+# factor loadings
+facLoads     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                        free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                        values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") )#same for each test on time 1 and 2
+
+#The first path is fixed at one - others scaled relative to this
+
+# means - one extra mean for the Factor, but this is set to NA
+means        <- mxPath( from="one", to=c(mylabels,'Factor1'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0),
+                        labels =c(myshortlab, myshortlab, NA) ) #means constant from time 1 to time 2
+
+myModel6 <- mxModel("Single Factor Model", type="RAM",
+                          manifestVars=mylabels, latentVars="Factor1",
+                          dataRaw, resVars, latVar, facLoads, means)
+
+Model6Fit <- mxRun(myModel6)
+summary.Model6<-summary(Model6Fit, refModels=mxRefModels(Model6Fit, run = TRUE)) 
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+
+test.6.2<-mxCompare(Model6Fit,Model2Fit)
+summary.Model6$Chi<-test.6.2$diffLL[2]
+summary.Model6$ChiDoF<-test.6.2$diffdf[2]
+summary.Model6$p<-test.6.2$p[2]
+summary.Model6
+
+mycomp<-'Model 2'
+thiscomment<-'Covariances: One factor'
+thisrowname<-'6.Person Effect'
+bigsummary<-addbig(summary.Model6,mycomp,thiscomment,thisrowname) 
+
+
+pmessage<-'One factor Model no better than Model with no covariance between measures'
+if(test.6.2$p[2]<.05){
+  pmessage <- paste0('One factor Model is better fit than Model with no covariance between measures')
+}
+pmessage
+bigsummary
+
+```
+Note how the CFI is now in a more sensible range, but still is well below acceptable level.
+Will a bifactor Model improve this?
+
+###Model 7: Bifactor Model
+Here we specify two independent latent factors. Aim is to see whether the tests form two clusters.
+
+```{r bifactor}
+# residual variances
+resVars      <- mxPath( from=mylabels, arrows=2,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T), values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels=c("e1","e2","e3","e4","e5","e6","e1","e2","e3","e4","e5","e6") )
+
+# latent variances and covariance: NB assume totally independent, so covariance fixed at zero
+latVars      <- mxPath( from=c("Factor1","Factor2"), arrows=2, connect="unique.pairs",
+                        free=c(T,F,F), values=c(1,0,1), labels=c("varFactor1","cov","varFactor2") )
+
+#changed the free statement from free =c(T,T,T) (that was error in prereg script: gives underidentified Model)
+
+# factor loadings for Factor1 #NB test A loading is fixed to one for this factor
+facLoadsFactor1     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=rep(1,12),
+                               labels =c("k1","k2","k3","k4","k5","k6","k1","k2","k3","k4","k5","k6") )
+
+# factor loadings for Factor2 #NB test A loading is fixed to zero for this factor
+facLoadsFactor2     <- mxPath( from="Factor2", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=c(0,rep(1,5),0,rep(1,5)),
+                               labels =c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") )
+
+# means #estimated for all except the two factors
+means        <- mxPath( from="one", to=c(mylabels,'Factor1','Factor2'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+                        labels =c(myshortlab, myshortlab, NA,NA) )
+
+myModel7 <- mxModel("BiFactor Model", type="RAM",
+                          manifestVars=mylabels,
+                          latentVars=c("Factor1","Factor2"),
+                          dataRaw, resVars, latVars, facLoadsFactor1, facLoadsFactor2, means)
+
+Model7Fit <- mxRun(myModel7)
+summary.Model7<-summary(Model7Fit, refModels=mxRefModels(Model7Fit, run = TRUE)) 
+summary.Model7
+
+#to get correct values for chi sq etc for model comparison run comparison and plug in values from row 2 of the summary
+
+test.7.6<-mxCompare(Model7Fit,Model6Fit)
+summary.Model7$Chi<-test.7.6$diffLL[2]
+summary.Model7$ChiDoF<-test.7.6$diffdf[2]
+summary.Model7$p<-test.7.6$p[2]
+mycomp<-'Model 6'
+thiscomment<-'Covariances: bifactor'
+thisrowname<-'7.Task x Person Effect'
+bigsummary<-addbig(summary.Model7,mycomp,thiscomment,thisrowname) 
+
+pmessage<-'Bi-factor Model does not improve fit over one factor Model'
+
+if (test.7.6$p[2]<.05){pmessage <- paste0('Bi-factor Model is better fit than one factor Model' )}
+pmessage
+test.7.6
+bigsummary
+#mxCheckIdentification(myModel7, details=TRUE) # check Model identification: all OK
+#factor loadings will be used to plot factors
+facloadings7<-c(1,summary.Model7$parameters$Estimate[1:5],0,summary.Model7$parameters$Estimate[6:10])
+#final estimate of path and SE from model 7 will be used in jacknife
+real_est_path<-summary.Model7$parameters$Estimate
+real_est_se<-summary.Model7$parameters$Std.Error
+```
+
+If p is significant in last row, indicates fit better for bifactor. Also, note that the more negative the BIC, the better the model fit.
+
+###Make factor scores and plot them
+In a further exploratory analysis, we plotted factor scores by making a weighted sum of scores, using factor loadings as weights.
+This shows that although the factors are modeled to be independent, they are highly intercorrelated. 
+
+```{r makefacscores}
+if (run_facscores == 1){ # See run_facscores toggle
+  
+  #? Use loadings or zscores?
+  #(Nb updated 28/8/18 to include measures from both time points)
+  #This is with loadings - but it makes little difference
+  #In weighted sum use original data, including excluded datapoints (alltaskall) to avoid losing subjects from this
+  allf1<-facloadings7[1:6]
+  allf2<-facloadings7[7:12] 
+  for (i in 1:nrow(alltask)){
+    alltask$f1score[i]<-alltaskall[i,1]*allf1[1]+
+      alltaskall[i,2]*allf1[2]+
+      alltaskall[i,3]*allf1[3]+
+      alltaskall[i,4]*allf1[4]+
+      alltaskall[i,5]*allf1[5]+
+      alltaskall[i,6]*allf1[6]+
+      alltaskall[i,7]*allf1[1]+
+      alltaskall[i,8]*allf1[2]+
+      alltaskall[i,9]*allf1[3]+
+      alltaskall[i,10]*allf1[4]+
+      alltaskall[i,11]*allf1[5]+
+      alltaskall[i,12]*allf1[6]
+    
+    alltask$f2score[i]<-alltaskall[i,1]*allf2[1]+
+      alltaskall[i,2]*allf2[2]+
+      alltaskall[i,3]*allf2[3]+
+      alltaskall[i,4]*allf2[4]+
+      alltaskall[i,5]*allf2[5]+
+      alltaskall[i,6]*allf2[6]+
+      alltaskall[i,7]*allf2[1]+
+      alltaskall[i,8]*allf2[2]+
+      alltaskall[i,9]*allf2[3]+
+      alltaskall[i,10]*allf2[4]+
+      alltaskall[i,11]*allf2[5]+
+      alltaskall[i,12]*allf2[6]
+  }
+  
+  #check for bivariate outliers
+facmod <- lm(alltask$f1score~alltask$f2score)
+alltask$cookdist <- cooks.distance(facmod)
+plot(alltask$cookdist,col=particdat$handcode,pch=16)
+w<-which(alltask$cookdist>(4*mean(alltask$cookdist)))
+print('Influential points are:')
+w
+alltask$bivoutlier <-0
+alltask$bivoutlier[w] <-1
+
+#make plot, showing outliers and left-handers
+  
+  pngname<-paste0('factorplot_fix',myfixed,'.png')
+  png(pngname, width=4, height=4, units="in", res=300)
+  plot(alltask$f1score,alltask$f2score,pch=(15+alltask$bivoutlier),col=particdat$handcode,
+       xlab='Factor 1',ylab='Factor 2')
+  abline(v=0,lty=2)
+  abline(h=0,lty=2)
+  mycor<-round(cor(alltask$f1score,alltask$f2score,use='pairwise.complete.obs'),3)
+  text(-5,10,paste('r = ',mycor))
+  dev.off()
+}
+
+#Show factor loadings
+paths_table<-data.frame(matrix(NA,nrow=6,ncol=5))
+colnames(paths_table)<-c('Task','Fac1','CI1','Fac2', 'CI2')
+paths_table$Task<-mylonglab #This has fixed path first
+paths_table$Fac1 <-round(allf1,2)
+paths_table$Fac2 <-round(allf2,2)
+loCI1<-allf1[2:6]-1.96*real_est_se[1:5]
+loCI2<-allf2[2:6]-1.96*real_est_se[6:10]
+hiCI1<-allf1[2:6]+1.96*real_est_se[1:5]
+hiCI2<-allf2[2:6]+1.96*real_est_se[6:10]
+paths_table$CI1[2:6]<-paste0(round(loCI1,2),' to ',round(hiCI1,2))
+paths_table$CI2[2:6]<-paste0(round(loCI2,2),' to ',round(hiCI2,2))
+paths_table[1,c(3,5)]<-'fixed'
+colnames(paths_table)<-c('Task','Path Factor 1','95% CI','Path Factor 2', '95% CI')
+
+
+```
+
+##Check solution robustness with drop one approach and explore results
+
+Final bifactor model re-run with one subject dropped each time.
+Standardized factor loading for each run saved in dropone_z.csv.
+
+This chunk drops one subject in each iteration and runs Model 6 (single factor) and Model 7 (bifactor).
+
+```{r dropone, message=FALSE}
+#Set up model definition
+
+# residual variances
+resVars             <- mxPath( from=mylabels, arrows=2,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T),          values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels=c("e1","e2","e3","e4","e5","e6",
+                                 "e1","e2","e3","e4","e5","e6"))
+
+# latent variance
+latVar_Model6       <- mxPath( from="Factor1", arrows=2,
+                        free=T, values=1, labels ="varFactor1" )
+latVar_Model7      <- mxPath( from=c("Factor1","Factor2"), arrows=2, connect="unique.pairs",
+                        free=c(T,F,F), values=c(1,0,1), labels=c("varFactor1","cov","varFactor2") )
+
+# factor loadings
+facLoads_Model6     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                        free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,
+                               FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), #The first path is fixed at one - others scaled relative to this
+                        values=c(1,1,1,1,1,1,1,1,1,1,1,1),
+                        labels =c("l1","l2","l3","l4","l5","l6",
+                                  "l1","l2","l3","l4","l5","l6") )#same for each test on time 1 and 2
+facLoadsFactor1_Model7     <- mxPath( from="Factor1", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=rep(1,12),
+                               labels =c("k1","k2","k3","k4","k5","k6","k1","k2","k3","k4","k5","k6") )
+facLoadsFactor2_Model7     <- mxPath( from="Factor2", to=mylabels, arrows=1,
+                               free=c(FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE), 
+                               values=c(0,rep(1,5),0,rep(1,5)),
+                               labels =c("l1","l2","l3","l4","l5","l6","l1","l2","l3","l4","l5","l6") )
+
+# means 
+means_Model6        <- mxPath( from="one", to=c(mylabels,'Factor1'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0),
+                        labels =c(myshortlab, myshortlab, NA) ) 
+                        #means constant from time 1 to time 2. 
+                        #One extra mean for the Factor, but this is set to NA
+means_Model7        <- mxPath( from="one", to=c(mylabels,'Factor1','Factor2'), arrows=1,
+                        free=c(T,T,T,T,T,T,T,T,T,T,T,T,FALSE,FALSE), values=c(1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+                        labels =c(myshortlab, myshortlab, NA,NA) )
+
+#Create dataframe to save the results
+nsubs<-nrow(alltaskall)
+dropone_results <- matrix(data = NA, nrow = nsubs, ncol = 5)
+  dropone_paths <-matrix(data=NA,nrow=nsubs,ncol=23)
+#Use'drop one' approach - reduce the dataset by one on each run
+
+for (thisdrop in 1:nsubs){
+  dataRaw      <- mxData( observed=alltask[-thisdrop,], type="raw" )
+  
+  
+  #Estimate Model 6
+  myModel6 <- mxModel("Single Factor Model", type="RAM",
+                          manifestVars=mylabels, latentVars="Factor1",
+                          dataRaw, resVars, latVar_Model6, facLoads_Model6, means_Model6)
+  Model6Fit <- mxRun(myModel6)
+  summary.Model6<-summary(Model6Fit, refModels=mxRefModels(Model6Fit, run = TRUE))   
+  
+  #Estimate Model 7
+  myModel7 <- mxModel("Bifactor Model", type="RAM",
+                          manifestVars=mylabels, latentVars=c("Factor1", "Factor2"),
+                          dataRaw, resVars, latVar_Model7, facLoadsFactor1_Model7, facLoadsFactor2_Model7, means_Model7) 
+  Model7Fit <- mxRun(myModel7)
+  summary.Model7<-summary(Model7Fit, refModels=mxRefModels(Model7Fit, run = TRUE)) 
+  
+  #Compare Models
+  mcomp<-mxCompare(Model7Fit, Model6Fit)
+  
+  #Write results to dropone_results data frame
+  dropone_results[thisdrop, 1] <- round(summary.Model6$BIC.Mx, 3)
+  dropone_results[thisdrop, 2] <- round(summary.Model7$BIC.Mx, 3)
+  dropone_results[thisdrop, 3] <- round(mcomp$diffLL[2], 3)
+  dropone_results[thisdrop, 4] <- mcomp$diffdf[2]
+  dropone_results[thisdrop, 5] <- round(mcomp$p[2], 3)
+
+  #save path estimates
+  dropone_paths[thisdrop,]<-summary.Model7$parameters$Estimate
+}
+
+
+colnames(dropone_results) <- c('BIC_mod6','BIC_mod7','chi.diff','df.diff','p.diff')
+dropone_results<-data.frame(dropone_results)
+dropone_results$BIC_diff <- dropone_results$BIC_mod6 - dropone_results$BIC_mod7
+
+dropone_results$bestModel<-'one factor'
+w<-which(dropone_results$p.diff < .05 & dropone_results$BIC_diff > 0)
+dropone_results$bestModel[w]<-'bifactor'
+print(dropone_results)
+bifacwin<-length(w)
+```
+
+
+
+###jacknife estimates of path SEs
+jacknife estimates considered for model SEs, which can be compared with standard method. The jacknife method uses the output from the drop-one analysis to look at distribution of estimates obtained with one subject omitted.
+
+
+```{R jackknife}
+if (run_dropone == 1){ # Only runs if dropone has also run
+  # Calculates the jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
+
+ n=myrow
+
+ #jacknife summary
+ avgpathmeans<-colMeans(dropone_paths) #average estimate across all dropone runs
+ jk_bias<-(n-1)*(avgpathmeans-real_est_path) 
+ 
+ jack_est<-(n*real_est_path)-((n-1)*avgpathmeans)
+pngname<-paste0('jacknifeplot_fix',myfixed,'.png')
+png(pngname, width=4, height=4, units="in", res=300)
+
+ plot(real_est_path,jack_est)
+ dev.off()
+ 
+ # calculates the jackknife SE estimates to allow us to calculate the CI.
+ 
+ mycol<-length(real_est_path)
+ jack_SE<-vector(mode="numeric",length=mycol)
+ for (i in 1:(mycol))
+ {
+ jack_SE[i]<-sqrt(((n-1)/n)*sum((dropone_paths[,i]-avgpathmeans[i])^2))
+ }
+ myres<-data.frame(real_est_path)
+ colnames(myres)[1]<-'Estimate'
+ myres$L_ci<-round(real_est_path-1.65*real_est_se,2)
+ myres$U_ci<-round(real_est_path+1.65*real_est_se,2)
+ myres$jack_Estimate<-round(jack_est,2)
+ myres$jack_Std.Error<-round(jack_SE,2)
+ myres$jk_L_ci<-round(jack_est-1.65*jack_SE,2)
+ myres$jk_U_ci<-round(jack_est+1.65*jack_SE,2)
+ myres$jk_bias<-round(jk_bias,2)
+ myres$Estimate<-round(myres$Estimate,2)
+ 
+plot(myres$Estimate,myres$jack_Estimate,main ='Jacknife analysis')
+ write.csv(myres,"jacknife_ests.csv")
+}
+```
+
+## Session information
+```{r sessinfo}
+sessionInfo()
+
+```
+
+<!-- Next chunks taken from manuscript --> 
+## Behavioural results
+We did not have specific predictions for the behavioural results, but present them here for completeness. For the List Generation and Sentence Generation tasks (tasks A - List Generation and D - Sentence Generation), the number of words spoken per trial was recorded. The number of words spoken in both tasks and sessions were very similar: For task A, session 1, mean = `r mymeanw[1]`, SD = `r mysdw[1]`, session 2, mean = `r mymeanw[3]`, SD = `r mysdw[3]`; For task D, session 1, mean = `r mymeanw[2]`, SD = `r mysdw[2]`, session 2, mean = `r mymeanw[4]`, SD = `r mysdw[4]`. A repeated measures ANOVA showed no significant effects of task: F(`r round(task.aov[1],0)`,`r round(task.aov[2],0)`) = `r round(task.aov[7],2)`, *p* = `r round(task.aov[9],3)`, or session: F(`r round(session.aov[1],0)`,`r round(session.aov[2],0)`) = `r round(session.aov[7],2)`, *p* = `r round(session.aov[9],3)` on the number of words spoken. Trials where participants failed to respond, or responded too early were excluded from analysis: these constituted less than 0.1% of trials.
+
+For the remaining tasks, performance was assessed in terms of percentage trials correct and reaction time (RT). Table `r (tabcount+1)` shows mean (SD) for both sessions.
+
+*Table `r (tabcount+1)`. Percent correct and RT data for tasks B, C, E and F.*
+
+*For decision making tasks (B, C, E and F) the mean (SD) accuracy, reaction times, and percentage of omitted responses. T-tests and p-values shown for comparison of Session 1 vs Session 2. B = Phonological Decision; C = Semantic Decision; E = Sentence Comprehension; F = Syntactic Decision.* 
+```{r tab1, echo=FALSE}
+thistab<-t(behavdf)
+kable(thistab)
+
+```
+
+Note that for task F participants were required to wait until the end of the word sequence before responding, and had only a second to respond; this accounts for the fast reaction times and relatively high number of omitted responses in task F. By contrast, in tasks B, C and E participants could respond at any time during the 3.3 second stimulus display.
+
+The Phonological Decision and Sentence Comprehension tasks (tasks B and E) showed evidence of practice effects, as both accuracy and reaction times improved, and the number of omitted responses fell from Session 1 to Session 2.
+
+## Laterality index data
+
+# Excluded trials from fTCD
+
+The Hoaglin Iglewicz procedure identified `r dropSEword` outlier LI values where the standard error across trials was above the upper cut-off. There were a further `r dropNword` occasions where data was excluded because a subject had less than twelve useable trials for a given task in a given session. The remaining data for these participants were retained in the analysis. Excluded datapoints are shown as red dots in Figure 5. 
+
+`r figcount<-figcount+1` 
+Figure `r figcount` **TO BE REDONE** shows the distribution of LIs as a pirate plot (Phillips, 2017), which shows individual data-points as well as the mean and distribution of scores. Task D (Sentence Generation) showed the strongest left lateralisation. Shapiro-Wilks normality tests showed that LI values for `r n.nonnormal.text` non-normally distributed. One sample t-tests (testing for mean > 0) showed that all conditions were significantly left lateralised, except task F (Syntactic Decision) at Sessions 1 (p = `r tdf$p[11]`) and 2 (p = `r tdf$p[12]`).
+
+
+![*Figure `r figcount`. Pirate plot showing the raw data for LI values for all tasks (A-F) and for both sessions (blue = Session1, pink = Session2). Raw datapoints are shown in grey. The black lines show the mean, and the shaded areas show the smoothed densities. Asterisks show results of one sample t-tests comparing the LI values of the group to zero (omitting excluded datapoints, shown in red) (* p < .05, ** p < .01, *** p < .001).*](LIpirateA2.png)
+
+`r figcount<-figcount+1`
+Figure `r figcount` shows a heatmap correlation matrix of the LI values for all tasks and sessions. Test-retest correlations were variable between tasks. Task A (List Generation) had poor test-retest reliability (Pearson’s r = `r cormat[1,2]`), and low correlations with other tasks. Test-retest reliability for other tasks ranged from r = `r min(test.retest.cor[2:6])` to `r max(test.retest.cor[2:6])`. Tasks B, C, D and E were strongly intercorrelated. Task F (Syntactic Decision) had acceptable test-retest reliability (r = `r cormat[11,12]`) but relatively low correlations with other tasks.
+
+![*Figure `r figcount`. Correlation matrix for LIs from the six language tasks given on two occasions*](heatmap.png)
+
+## Structural Equation Modelling
+`r tabcount<-tabcount+1`
+The LI data were entered into the SEM analysis to test hypotheses about the group mean LI values and covariances in LI values across subjects. Table `r tabcount` summarises the data on model fit.
+
+# Step 1: Testing Stability of LI Values
+`r tabcount<-tabcount+1`
+As shown in Table `r tabcount`, the fit of all the means-only models is very poor. This is to be expected, as these models ignore covariances, and, as indicated in Figure 6, there are substantial correlations both between and within tasks. Our interest at this point, however, is in the relative fit of different models of means, rather than overall model fit. The fully-saturated model (with free means/variances)  was compared to the task effect model, which fixed the means and variances for each task to be the same at each session (i.e. A1 = A2, B1 = B2, etc.). The Bayesian Information Criteria (BIC) for this comparison is shown in Table 2. The fit of the task effect model did not deteriorate significantly from that of the fully-saturated model. This supported the hypothesis that LI means for each task were stable across the two sessions.
+
+```{r table2, echo=FALSE}
+mycaption<-paste0('Table ', tabcount,'. Model fit statistics from structural equation models')
+kable(bigsummary,caption=mycaption)
+
+```
+
+# Step 2: Testing population bias model
+
+To demonstrate whether the means differed between tasks, the task effect model was compared to the population bias model, where means for all tasks are fixed to the same value. This may be seen as a null hypothesis that treats all tasks as equivalent indices of laterality. The population bias model gave significantly worse fit (see Table 2). Hence, there was strong evidence that the LI means differed between tasks.
+
+Two further sub-hypotheses were compared against task effect model; the first was the dorsal-ventral stream model. This comparison required us to categorise the language tasks. Tasks A and B were regarded as involving strong dorsal stream activity, task C as strong ventral stream activity, and tasks D, E and F as intermediate. This model gave significantly poorer fit than the task effect model – as is evident from a consideration of Figure `r (figcount-1)`, which shows relatively weak lateralisation for tasks A and B compared to task D. The lexical retrieval model did not fare any better. We regarded tasks B and D as involving strong lexical retrieval, whereas tasks A, C and F did not involve lexical retrieval, and task E was difficult to classify and so was considered as independent of the other measures. Again, this specific model gave a worse fit than the task effect model, indicating that, while laterality varied between tasks, it did not fit the specific pattern we had predicted. Note, however, that the pre-registered tests that we specified for both theories have some limitations, as we discuss further below.
+
+# Step 3: Testing models of covariances
+At Step 3 we tested whether the covariances between tasks had a single factor structure (person effect model) or a two factor structure (task by person effect model). Not surprisingly, given the strong correlations in Figure `r figcount`, both within and across tasks, the person effect model gave substantially better fit than the task effect model (see Table `r tabcount`); nevertheless, the overall fit of this model was poor. The task by person effect model, with two factors, gave significantly improved fit. 
+
+`r tabcount<-tabcount+1`
+Note that, although the model fit is not affected by task selection, the factor scores depend on which task has fixed paths to the factors. The paths for the case when `r mylonglab[nuorder[1]]` is fixed are shown in Table `r tabcount`. 
+
+```{r pathtable, echo=FALSE}
+mycaption<-paste0('Table ',tabcount,': Factor loadings for bifactor model, Task ',LETTERS[nuorder[1]],' as fixed path.')
+kable(paths_table,caption=mycaption)
+```
+
+To test the robustness of the factor structure, a drop-one analysis was conducted, by re-running the models with `r (nsub-1)` of the `r nsub` participants. This showed that the bifactor model gave better fit than the single factor model on `r bifacwin` of `r nsub` runs.
+
+**This bit of text just for main Results with full sample**
+`r figcount <- figcount+1`
+A plot of the two factors is shown in Figure `r figcount`. 
+
+It can be seen that List Generation has only a weak loading on Factor 1, whereas Phonological Decision, Semantic Decision and Sentence Comprehension have moderate loadings on both Factors. Syntactic Decision has a strong loading on Factor 2 but does not load on Factor 1, reflecting the weak correlation of this task with Sentence Generation.
+
+
+![*Figure `r figcount`. Correlation between two factors from bifactor model, with left-handers shown in red, and bivariate outliers as circles*](factorplot_fixSentGen.png)
+In our original analysis with just 30 participants, a similar factor structure was observed, but there was a concern that this depended solely on a single left-handed participant (See Supplementary Material). With the larger sample of 37 participants, the bifactor solution was superior in all runs of a leave-one out analysis. The bifactor model was also the best-fitting model when only the 30 right-handers were included in the analysis. Nevertheless, it is clear from Figure `r figcount` that the two factors are highly intercorrelated, and the impression is that the factor solution is heavily affected by some influential cases. Cook's distance was computed to identify four bivariate outliers, which are marked with different symbols in Figure `r figcount`. Three of the outliers were left-handers and one was a right-hander. When the analysis was re-run omitting these cases, the single factor model gave a better fit in all but one run of a leave-one-out analysis. 
+
+
+
+
+
+
+
+
