@@ -271,8 +271,6 @@ if (usemean==1){ #See usemean toggle
                  select(data2,A2.mean_se,B2.mean_se,C2.mean_se,D2.mean_se,E2.mean_se,F2.mean_se))
 }
 
-
-
 myse<-c(allse[,1],allse[,2],allse[,3],allse[,4],allse[,5],allse[,6],
         allse[,7],allse[,8],allse[,9],allse[,10],allse[,11],allse[,12])
 
@@ -398,6 +396,7 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
 }
 }
 ```
+
 ##Pirateplot
 This needs redoing!
 Ideally should code handedness as well as excluded points
@@ -430,7 +429,6 @@ if (run_pirate == 1){ # See run_pirate toggle
   # Melt cleverly reshapes LI_data into a long format using ID 
   # (the only factor) as the categorical variable    
   LI_long <- melt(alltaskall) #version with outliers 
-  outliermark<-is.na(alltask)
   LI_long$ID<-rep(1:myrow,6)
   LI_long$Session<-c(rep(1,myrow*6),rep(2,myrow*6))
   long_task_list <- vector() # create an empty vector
@@ -441,44 +439,75 @@ if (run_pirate == 1){ # See run_pirate toggle
   #Need task code because otherwise pirate plot will order tasks alphabetically
   LI_long$Taskcode<-c(rep(c(rep('A',nsub),rep('B',nsub),rep('C',nsub),rep('D',nsub),
                       rep('E',nsub),rep('F',nsub)),2))
+  LI_long$handedness <- rep(particdat$handcode,12)
                       
   colnames(LI_long)[2]<-'LI'
   
- png(filename="LIpirateA2.png", width=1500, height=1200,res=300)
+  png(filename="LIpirateA2.png", width=1500, height=1500,res=300)
 
   # Make pirate plot
   pirateplot(formula = LI ~ Session + Taskcode,
              data = LI_long,
              main = "",
              ylab = "LI Value",
-             ylim = c(-3, 7),
-             point.o=.5,inf.f.o=.1,inf.b.o=0,
+             ylim = c(floor(min(LI_long$LI))-0.5, ceiling(max(LI_long$LI))+0.5),
+            # point.o=.5,inf.f.o=.1,inf.b.o=0,
              jitter.val=.075)
   
   abline(h=0,lty=2)
   
-  xmarker_nums <- c(1,2,4,5,7,8,10,11,13,14,16,17) # For plotting x-axis
-  # Mark significant differences (excluding outlier data) with black astrisks
-  text(xmarker_nums, y=as.numeric(tdf[,3]), labels=tdf[,4],font=2, cex=1.3)
+  # Index relating Task/Session conditions to points on the x axis
+  xmarker_index <- data.frame(
+    'x_nums' = c(1,2,4,5,7,8,10,11,13,14,16,17), # For plotting x-axis
+    'task' = c('A','A','B','B','C','C','D','D','E','E','F','F'),
+    'session' = c(rep(c(1,2),6)))
   
-  # Mark outlier values as red dots
- #points(outlier_markers, y=outlier_values, type = "p", pch = 16, col="red")
+  # Mark left handers in red dots
+  lhmark <- which(LI_long$handedness==2)
+  nleft <- length(lhmark)
+  lh_markers <- numeric(length = nleft)
+  
+  if (nleft > 0){ # If the data includes some left handers...
+    for (m in 1:nleft){ # Figure out where to put the markers on the x-axis
+      lh_markers[m] <- xmarker_index$x_nums[
+        which(xmarker_index$task == LI_long$Taskcode[lhmark[m]]
+        & xmarker_index$session == LI_long$Session[lhmark[m]])]
+    }
+  }
+  
+ # points(lh_markers, LI_long$LI[which(LI_long$handedness==2)], type ='p', pch = 1, col='red')
+ 
+  
+  # Mark outlier values as red dots  
+  outliermark<-which(is.na(alltask))
+  outlier_markers <- numeric(length=length(outliermark))
+  outlier_values <- numeric(length=length(outliermark))
+  for (o in 1:length(outliermark)){
+    outlier_markers[o] <- xmarker_index$x_nums[which(xmarker_index$task == LI_long$Taskcode[outliermark[o]] 
+          & xmarker_index$session == LI_long$Session[outliermark[o]])]
+    outlier_values[o] <- LI_long$LI[outliermark[o]]
+  }
 
+  points(outlier_markers, y=outlier_values, type = "p", pch = 16, col="red")
 
- dev.off()
+  
+  # Mark significant differences (excluding outlier data) with black astrisks
+  text(xmarker_index$x_nums, y=as.numeric(tdf[,3]), labels=tdf[,4],font=2, cex=1.3)
+
+  dev.off()
 }
 
 
 ```
 
-![Pirate plot](LIpirateA2.png)
+![](LIpirateA2.png)
 
 
-##Correlation matrix as heatmap
+## Correlation matrix as heatmap
 ```{r corrheat}
 
 if (do_corrheat == 1){ # See do_corrheat toggle
-   png(filename="heatmap.png", width=1500, height=1500,res=300)
+  png(filename="heatmap.png", width=1500, height=1500,res=300)
   cormat<-round(cor(alltask[,ilist], use="pairwise.complete.obs", method="pearson"),2)
   rownames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
   colnames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
@@ -513,7 +542,7 @@ if (do_corrheat == 1){ # See do_corrheat toggle
     coord_fixed()
   
   #add some formatting
-  ggheatmap + 
+  plot_format <- ggheatmap + 
     geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
     theme(
       axis.title.x = element_blank(),
@@ -528,11 +557,13 @@ if (do_corrheat == 1){ # See do_corrheat toggle
     guides(fill = guide_colorbar(barwidth = 9, barheight = 1.5,
                                  title.position = "top", title.hjust = 0.5))
   
+  print(plot_format)
   dev.off()
 }
 ```
 
-![Heatmap](heatmap.png)
+![](heatmap.png)
+
 ## Structural equation Models: 
 
 ```{r setupbigsummary}
