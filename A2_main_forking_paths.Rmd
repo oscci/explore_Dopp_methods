@@ -56,23 +56,21 @@ library(rsvg)
 library(knitr)
 
 ########### Set toggles before running! ################################################################
-RHonly            <- 0 # Set to 0 if want to include L handers
-Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander)
-#removesubs       <- c(10,22,26,28) #specific IDs to remove; set to zero to remove none
-removesubs        <- 0
-run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group
-run_behavioural   <- 1 # Set to 1 to analyse behavioural data
-usemean           <- 0 # Set to 0 to analyse original peak-based LI values
-remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials
-tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model
-run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data
-run_pirate        <- 1 # Set to 1 to run pirate plot of LI data
-do_corrheat       <- 1 # Set to 1 to run correlation matrix heatmap plot
-run_pathdrop      <- 1 # Set to 1 to run pathdrop SEM analysis
-run_covexplore    <- 1 # Set to 1 to run covariance exploration analysis
-run_drawpaths     <- 1 # Set to 1 to run graphviz paths plot
-run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis
-run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs is run_dropone is also 1)
+RHonly            <- 0 # Set to 0 if want to include L handers. MANUSCRIPT = 0; PREREGISTRATION = 0
+Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander). MANUSCRIPT = 0; PREREGISTRATION = 1
+#removesubs       <- c(10,23,27,29)  
+removesubs        <- 0 # Set to 1 to remove specific participants. MANUSCRIPT = 0; PREREGISTRATION = 0
+if (removesubs = 1){ removesubs <- c(10, 23, 27, 29)} #specific participant rows to remove.
+run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group. MANUSCRIPT = 1; PREREGISTRATION = 1
+run_behavioural   <- 1 # Set to 1 to analyse behavioural data. MANUSCRIPT = 1; PREREGISTRATION = 1
+usemean           <- 1 # Set to 0 to analyse original peak-based LI values. MANUSCRIPT = 1; PREREGISTRATION = 0
+remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials. MANUSCRIPT = 1; PREREGISTRATION = 1
+tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model. MANUSCRIPT = 1; PREREGISTRATION = 0
+run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data. MANUSCRIPT = 1; PREREGISTRATION = 1
+run_pirate        <- 1 # Set to 1 to run pirate plot of LI data. MANUSCRIPT = 1; PREREGISTRATION = 1
+do_corrheat       <- 1 # Set to 1 to run correlation matrix heatmap plot. MANUSCRIPT = 1; PREREGISTRATION = 1
+run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis. MANUSCRIPT = 1; PREREGISTRATION = 1
+run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs if run_dropone is also 1). MANUSCRIPT = 1; PREREGISTRATION = 1
 
 nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
 #  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
@@ -141,7 +139,7 @@ if (run_behavioural==1){ #See run_behavioural toggle
   
   # Only include participants in particdat
   behavdat <- behavdat[
-    which(particdat$ID == behavdat$Filename), ]
+    which(is.element(behavdat$Filename, particdat$ID)), ]
 
   #NB Do not need to specify exclusions by sample or handedness here.
   #Participant ID has already incorporated there
@@ -235,8 +233,8 @@ N.B. Can select to use original LI values based on peak, or LI values from mean 
 
 data1<-read.csv('Results_Session1.csv')
 data2<-read.csv('Results_Session2.csv')
-data1<-data1[which(particdat$ID == data1$Filename), ]
-data2<-data2[which(particdat$ID == data2$Filename), ]
+data1<-data1[which(is.element(data1$Filename, particdat$ID)), ]
+data2<-data2[which(is.element(data2$Filename, particdat$ID)), ]
 
 alltaskall <- cbind(select(data1,A1.LI,B1.LI,C1.LI,D1.LI,E1.LI,F1.LI),
              select(data2,A2.LI,B2.LI,C2.LI,D2.LI,E2.LI,F2.LI))
@@ -1057,7 +1055,7 @@ facmod <- lm(alltask$f1score~alltask$f2score)
 alltask$cookdist <- cooks.distance(facmod)
 plot(alltask$cookdist,col=particdat$handcode,pch=16)
 w<-which(alltask$cookdist>(4*mean(alltask$cookdist)))
-print('Influential points are:')
+print('Influential points are:') # These values are ROW NUMBERS not PARTICIPANT IDs
 w
 alltask$bivoutlier <-0
 alltask$bivoutlier[w] <-1
