@@ -17,27 +17,69 @@ knitr::opts_chunk$set(echo = TRUE)
 `r Sys.time()`
 
 ## Background
-Original protocol for project is here: <https://osf.io/tkpm2/registrations/>
+This project was preregistered on OSF under the title 'CANDICE A2: Assessing reliability of language laterality measures using fTCD'. 
 
-See Dopp_explore_log.RMd for more background on how Modeling was developed.
+The original protocol for project is here: <https://osf.io/tkpm2/registrations/>. The protocol was later amended, and a description of this can be found here: <https://osf.io/bjsv8/>. 
 
-Source reference is: Kline, R. B. (2011). Principles and practice of structural equation Modeling, 3rd edition. New York: Guilford Press.
-Kline has detailed discussion of testing for fit: is against absolute cutoffs, though notes cutoffs that have been proposed on basis of simulation studies.
+Scripts for the data simulation used in the preregistration can be found here: <https://osf.io/tkpm2/>.
 
-RMSEA is absolute index of (badness of) Model fit: aim for below .08.
-This value decreases with more DF (greater parsimony) or larger sample size.
- 
-Comparative fit index (CFI) measures relative improvement in fit of Model over baseline Model. 
-Computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CFI > .95 (see Kline p 208)
+The task scripts and stimuli used in this project can be found here: <https://osf.io/8s7vn/>. The resulting data can be found on OSF here: <https://osf.io/s9kx6/>. The script used to analyse the raw fTCD data prior to running this group analysis are on OSF here: <https://osf.io/wku3s/>.
 
-N.B. This version of script allows options in terms of which participants are included and which measure of LI is used. Values from the selected analysis are inserted into a Results section (see end of script). This allows for alternative approaches to be compared in Appendix.
 
-##Chunks of code for setting packages and reading in data 
-from SEM2_maxLikelihood_realdata.R
+## This script
+
+This markdown script runs all analyses reported in the manuscript. It allows options in terms of which participants are included and which measure of LI is used. Values from the selected analysis are inserted into a Results section (see end of script). This allows for alternative approaches which are described in the Supplementary Materials.
+
+The relevant parameters for the final analysis were as follows:
+* All 37 participants were included (RHonly=0; Init30=0; removesubs=0). 
+* Laterality Indices (LIs) were computed by taking the mean left minus right difference within the period of interest (usemean=1)
+* The fixed paths in the SEM covariance analysis were set to task D, Sentence Generation (tryreorder=1; nuorder=c(4,1,2,3,5,6,10,7,8,9,11,12))
+
+To run the analysis according to the preregistration, use the following parameters:
+* Use first 30 participants only (RHonly=0; Init30=1; removesubs=0)
+* Calculate LIs by taking the peak left minus right difference within the period of interest (usemean=0)
+* Set the fixed paths in the covariance analysis to task A, List Generation (tryreorder=0)
+
+
+## Setting packages and reading in data 
+
+This section sets up the R environment and has a set of toggles for the user to control the parameters of the analysis.
+
 ```{r packages, warning=FALSE, message=FALSE}
-#Needs OpenMx, which you get with following command (not CRAN)
-#Hmm - having problems with OpenMx - now using Cran version
+########### Set toggles before running! ################################################################
 
+# These toggles determine the parameters used in the analysis
+RHonly            <- 0 # Set to 0 if want to include L handers. MANUSCRIPT = 0; PREREGISTRATION = 0
+Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander). MANUSCRIPT = 0; PREREGISTRATION = 1
+removesubs        <- 0 # Set to 1 to remove specific participants. MANUSCRIPT = 0; PREREGISTRATION = 0
+if (removesubs == 1){ removesubs <- c(10, 23, 27, 29)} #specific participant rows to remove.
+usemean           <- 1 # Set to 0 to analyse original peak-based LI values. MANUSCRIPT = 1; PREREGISTRATION = 0
+tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model. MANUSCRIPT = 1; PREREGISTRATION = 0
+nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
+#  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
+# c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
+# c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
+ c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
+# c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
+# c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
+remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials. MANUSCRIPT = 1; PREREGISTRATION = 1
+
+# These toggles determine whether certain chunks are run or not - some can be turned off to avoid overwriting previous results
+run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group. 
+run_behavioural   <- 1 # Set to 1 to analyse behavioural data. 
+run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data. 
+run_pirate        <- 1 # Set to 1 to run pirate plot of LI data. 
+run_corrheat      <- 1 # Set to 1 to run correlation matrix heatmap plot. 
+run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis. 
+run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs if run_dropone is also 1). 
+
+# These toggles are used when generating the write-up section
+tabcount         <- 0  #Start of counter for tables in Results section
+figcount         <- 4  #Start of counter for figs in Results section
+
+########################################################################################################
+
+#Needs OpenMx, which you get with following command (not CRAN)
 #source('https://openmx.ssri.psu.edu/software/getOpenMx.R')
 require(tidyverse)
 require(OpenMx)
@@ -55,50 +97,16 @@ library(svglite)
 library(rsvg)
 library(knitr)
 
-########### Set toggles before running! ################################################################
-RHonly            <- 0 # Set to 0 if want to include L handers. MANUSCRIPT = 0; PREREGISTRATION = 0
-Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander). MANUSCRIPT = 0; PREREGISTRATION = 1
-#removesubs       <- c(10,23,27,29)  
-removesubs        <- 0 # Set to 1 to remove specific participants. MANUSCRIPT = 0; PREREGISTRATION = 0
-if (removesubs = 1){ removesubs <- c(10, 23, 27, 29)} #specific participant rows to remove.
-run_participants  <- 1 # Set to 1 to calculate age and gender stats of participant group. MANUSCRIPT = 1; PREREGISTRATION = 1
-run_behavioural   <- 1 # Set to 1 to analyse behavioural data. MANUSCRIPT = 1; PREREGISTRATION = 1
-usemean           <- 1 # Set to 0 to analyse original peak-based LI values. MANUSCRIPT = 1; PREREGISTRATION = 0
-remove.Ntrial     <- 1 # Set to 1 to run exclusion of those with < 12 good trials. MANUSCRIPT = 1; PREREGISTRATION = 1
-tryreorder        <- 1 # Set to 1 to change the fixed path in the SEM model. MANUSCRIPT = 1; PREREGISTRATION = 0
-run_normalcheck   <- 1 # Set to 1 to run normality tests on LI data. MANUSCRIPT = 1; PREREGISTRATION = 1
-run_pirate        <- 1 # Set to 1 to run pirate plot of LI data. MANUSCRIPT = 1; PREREGISTRATION = 1
-do_corrheat       <- 1 # Set to 1 to run correlation matrix heatmap plot. MANUSCRIPT = 1; PREREGISTRATION = 1
-run_dropone       <- 1 # Set to 1 to run drop-one SEM analysis. MANUSCRIPT = 1; PREREGISTRATION = 1
-run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analysis (N.B. Only runs if run_dropone is also 1). MANUSCRIPT = 1; PREREGISTRATION = 1
-
-nuorder           <-   # Sets the new order of tasks. The task listed first (and seventh) will be fixed.
-#  c(1,2,3,4,5,6,7,8,9,10,11,12) # List generation fixed
-# c(3,1,2,4,5,6,9,7,8,10,11,12) # Semantic decision fixed
-# c(2,1,3,4,5,6,8,7,9,10,11,12) # Phonological decision fixed
- c(4,1,2,3,5,6,10,7,8,9,11,12) # Sentence generation fixed
-# c(5,1,2,3,4,6,11,7,8,9,10,12) # Sentence comprehension fixed
-# c(6,1,2,3,4,5,12,7,8,9,10,11) # Jabberwocky decision fixed
-tabcount         <- 0  #Start of counter for tables in Results section
-figcount         <- 4  #Start of counter for figs in Results section
-
-########################################################################################################
-
-```
-##Code for setting directory flexibly
-```{r definedir}
-#This not currently used but should be easy to adapt if needed. 
-#Script currently assumes working directory is already set to current folder where files reside
-thisuser <-'dorothybishop'
-thisdrive<- '' #may need to set this to 'C:' for PC users
-#readdir <-paste0(thisdrive,'/Users/',thisuser,'/Dropbox/project A2/')
-readdir<-'' #use this if working directory set to folder with all the data
 ```
 
-##Participant demographic data
+
+## Participant demographic data
+
+This section reads in the A2_Participant_Info.csv file from OSF (<https://osf.io/5jt6q/>) and reports basic demographic information.
+
 ```{r participants}
 
-particdat<-read.csv('A2_Participant_Info.csv')
+particdat<-read.csv('https://osf.io/5jt6q/download') # Downloads A2_Participant_Info.csv from OSF Project
 rhanded<-which(particdat$handedness=='R')
 particdat$handcode<-2
 particdat$handcode[rhanded]<-1
@@ -130,12 +138,15 @@ if(run_participants==1){ #See run_participants toggle
 
 ```
 
-##Task performance data
+## Task performance data
+
+This section reads in the A2_Behavioural_Data.csv file from OSF (<https://osf.io/wznbv/>) and reports behavioural results. Statistics on the number of words spoken in Tasks A and D are also calculated.
+
 ```{r behaviouraldata}
 
 if (run_behavioural==1){ #See run_behavioural toggle
   
-  behavdat<-read.csv('A2_Behavioural_Data.csv')
+  behavdat<-read.csv('https://osf.io/wznbv/download') # Downloads A2_Behavioural_Data.csv from OSF Project
   
   # Only include participants in particdat
   behavdat <- behavdat[
@@ -224,15 +235,18 @@ task.aov <-unlist(myaov$'Error: sub:task')
 session.aov <-unlist(myaov$'Error: sub:time')
 ```
 
-##Code for reading and reshaping LI data
-N.B. Can select to use original LI values based on peak, or LI values from mean in POI.
+
+## Read and reshape LI data
+
+This section reads in the results of the fTCD analysis (see A2_doppler_analysis_v2.R, <https://osf.io/wku3s/>)
+N.B. Can select to use original LI values based on peak, or LI values from mean in POI by changing the usemean toggle.
 
 ```{r readdata}
 #read in data from sessions 1 and 2, having saved as .csv
 #NB. Need to set working directory to location of data files - or else specify path
 
-data1<-read.csv('Results_Session1.csv')
-data2<-read.csv('Results_Session2.csv')
+data1<-read.csv('https://osf.io/afv4h/download')
+data2<-read.csv('https://osf.io/hzswc/download')
 data1<-data1[which(is.element(data1$Filename, particdat$ID)), ]
 data2<-data2[which(is.element(data2$Filename, particdat$ID)), ]
 
@@ -257,13 +271,13 @@ head(alltaskall)
 ```
 
 
-##Code for identifying exclusions and substituting NA based on SE
-Please see justification in Methods. Outliers based on SE of LI rather than value of LI. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
+## Identifying exclusions and substituting NA based on SE
+
+This section selects outliers based on SE of LI rather than value of LI. This differs from what we preregistered but we can defend it as making more sense. I.e. we want to exclude runs where the data are unreliable, but we do not want to exclude runs where the LI is statistically unusual.
 
 ```{r excludeSE}
 
-alltask<-alltaskall
-#create a new copy where the outliers will be coded as NA
+alltask<-alltaskall # Create a new copy where the outliers will be coded as NA
 
 allse <- cbind(select(data1,A1.se,B1.se,C1.se,D1.se,E1.se,F1.se),
              select(data2,A2.se,B2.se,C2.se,D2.se,E2.se,F2.se))
@@ -336,7 +350,10 @@ missdata<-round((.5+ww),0) #columns with missing datapoint from either mode of e
 #(Do-able in code but not easy!)
 
 ```
-##Check correlation with peak LI values
+## Check correlation with peak LI values
+
+If the mean LI values have been used (usemean=1), this section computes the correlation with the more conventional peak LI values.
+
 ```{r peakcorr}
 if (usemean == 1){ # Only runs if we're using mean values for LI
   allmeanLI <- numeric(0)
@@ -353,16 +370,20 @@ if (usemean == 1){ # Only runs if we're using mean values for LI
 
 
 
-##Show means etc for tasks with time1 and time2 adjacent
+## Calculate means of LI values across all 6 tasks and 2 sessions
+
+This section generates a table of summary statistics for LI values in each condition.
+
 ```{r stargaze}
 
 stargazer(alltask[,c(1,7,2,8,3,9,4,10,5,11,6,12)],type='text',na.rm=TRUE)
 
 ```
 
-##Check normality of data
-Have a look at the densities and do Shapiro-Wilks test and QQ plot
-Plots will be written to the working directory, called densities 1-6
+## Check normality of LI data
+
+Have a look at the densities and do Shapiro-Wilks test and QQ plots.
+
 ```{r normalcheck}
 
 if (run_normalcheck==1){ # See run_normalcheck toggle
@@ -370,7 +391,6 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
   colnames(shapdf)<-c('task','session','p')
   myrow<-0 
   for (i in 1:6){ # Loop through tasks
-    # png(filename=paste0("densities_",i,".png"))
     par(mfrow=c(2,2))
     
     for (j in 1:2){ # Loop through sessions
@@ -384,11 +404,10 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
       ## Plot using a qqplot
       qqnorm(tempdata);qqline(tempdata, col = 2)
       text(.4,0,paste('Shapiro\np = ',round(myshap$p.value,3)))
-     shapdf[myrow,1]<-LETTERS[i]
+      shapdf[myrow,1]<-LETTERS[i]
       shapdf[myrow,2]<-j
       shapdf[myrow,3]<-round(myshap$p.value,3)
     }
-    # dev.off()
   }
   #Create text for Results section
   n.nonnormal<-length(which(shapdf$p<.05))
@@ -399,8 +418,9 @@ if (run_normalcheck==1){ # See run_normalcheck toggle
 }
 ```
 
-##Pirateplot
-Produces a pirate plot of LI values with excluded datapoints marked in red.
+## Pirateplot
+
+Produces a pirate plot of LI values with excluded datapoints marked in red. The pirate plot will be written to LIpirateA2.png.
 
 ```{r dopirate}
 myrow<-nrow(alltask)
@@ -461,7 +481,7 @@ if (run_pirate == 1){ # See run_pirate toggle
     'task' = c('A','A','B','B','C','C','D','D','E','E','F','F'),
     'session' = c(rep(c(1,2),6)))
   
-  # Mark left handers in red dots
+  # Optional: mark left handers in red dots
   lhmark <- which(LI_long$handedness==2)
   nleft <- length(lhmark)
   lh_markers <- numeric(length = nleft)
@@ -474,7 +494,7 @@ if (run_pirate == 1){ # See run_pirate toggle
     }
   }
   
- # points(lh_markers, LI_long$LI[which(LI_long$handedness==2)], type ='p', pch = 1, col='red')
+  # points(lh_markers, LI_long$LI[which(LI_long$handedness==2)], type ='p', pch = 1, col='red')
  
   
   # Mark outlier values as red dots  
@@ -502,10 +522,13 @@ if (run_pirate == 1){ # See run_pirate toggle
 ![](LIpirateA2.png)
 
 
-## Correlation matrix as heatmap
+## Correlation matrix
+
+This section runs correlations between the 12 conditions (6 tasks and 2 sessions) and prints a correlation heatmap to heatmap.png.
+
 ```{r corrheat}
 
-if (do_corrheat == 1){ # See do_corrheat toggle
+if (run_corrheat == 1){ # See run_corrheat toggle
   png(filename="heatmap.png", width=1500, height=1500,res=300)
   cormat<-round(cor(alltask[,ilist], use="pairwise.complete.obs", method="pearson"),2)
   rownames(cormat)<-c('A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
@@ -563,7 +586,20 @@ if (do_corrheat == 1){ # See do_corrheat toggle
 
 ![](heatmap.png)
 
-## Structural equation Models: 
+## Structural equation Modeling
+
+This section runs all SEM models and comparisons. 
+
+The source reference for the SEM analysis is: Kline, R. B. (2011). Principles and practice of structural equation Modeling, 3rd edition. New York: Guilford Press.
+
+Kline has detailed discussion of testing for fit: is against absolute cutoffs, though notes cutoffs that have been proposed on basis of simulation studies.
+
+RMSEA is absolute index of (badness of) Model fit: aim for below .08. This value decreases with more DF (greater parsimony) or larger sample size.
+ 
+Comparative fit index (CFI) measures relative improvement in fit of Model over baseline Model. It is computed as 1 - (chisqM - dfM)/(chisqB-dfB); Good fit if CFI > .95 (see Kline p 208).
+
+
+### Prepare for SEM results
 
 ```{r setupbigsummary}
 #We'll create a Table, bigsummary, to hold fit stats for different Models
@@ -600,7 +636,7 @@ addbig <- function(thissummary,mycomp,thiscomment,thisrowname) {
 }
 ```
 
-##Try with different order of variables
+### Try with different order of variables
 
 ```{r reordertasks}
 #Reassuring that reordering variables does not affect model fit
@@ -618,7 +654,9 @@ if (tryreorder==1){ #See tryreorder toggle
 
 ```
 
-###Model 1: Free Means and Vars Model 
+
+### Model 1: Free Means and Vars Model
+
 (from fig 4 in prereg document)
 
 This acts as baseline: it just Models means and variance: no relation between variables, 
@@ -630,6 +668,7 @@ equalising paths or by Modeling covariances.
 N.B. I previously described this as a saturated Model, but the fully saturated Model includes covariances
 (which are all zero) and so has more DF. The free means Model can be evaluated against the fully saturated one, using mxRefModels to specify the saturated Model. When that is done, we get rmsea and CFI provided for relative fit.
 Start with Models of means
+
 
 ```{r freemeans_Model1}
 # residual variances
@@ -664,9 +703,10 @@ bigsummary<-addbig(summary.Model1,mycomp,thiscomment,thisrowname)
 
 ```
 
+
 N.B. The summary output shows estimates of variances (e) and means (M). Note that the variance is particularly high for SentGen2. Also v low variance for ListGen1
 
-###Model 2: Tweak free means Model to check stability of means
+### Model 2: Tweak free means Model to check stability of means
  Means and variances set to be the same for time1 and time2 for each measure. 
  N.B. for this model and all subsequent means models, OpenMx gives a warning about possible misspecification of the model. This is because covariances are omitted from the model, but are included in the reference model. I think this need not be a problem, as we are anticipating v poor model fit, precisely because we ignore covariances, when the correlation matrix makes it clear that we need to model them. The models here, though, are intended just to compare between different theories about means, and to compare models that all suffer from this same deficiency. 
  
