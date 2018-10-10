@@ -1295,6 +1295,8 @@ sessionInfo()
 ***
 The following sections are reported in the manuscript Results section.
 ***
+
+
 All data are available on OSF (https://osf.io/s9kx6/). Results from the pre-registered analysis protocol (i.e., using the first 30 participants only) are shown in Supplementary Materials. As noted above, the factor solution from this sample was unstable and unduly influenced by one left-hander. We report here the results based on the final sample of 30 right-handers and 7 left-handers, which gives a stable solution, and we include exploratory analyses relating the findings to handedness. The LI values reported here are based on the mean difference between left and right CBFV, as this gives normally distributed variables, but the results are highly similar when the non-normal peak-based LIs are used instead. The analysis script provided on OSF (https://osf.io/tkpm2/) facilitates comparisons between different analytic pathways.
 
 ## Behavioural results
