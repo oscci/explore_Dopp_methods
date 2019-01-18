@@ -1,0 +1,211 @@
+---
+title: "lat_models_plot"
+author: "DVM Bishop"
+date: "31/05/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(Hmisc)
+```
+
+# Background
+This file was used to create the original for Figure 1. Updated 18 Jan 2019 to take on board reviewer commments and to correct the means for R hand panel (x and y means were transposed in submitted paper)
+
+##Laterality at the level of the population and the individual
+In considering whether or not language laterality is unitary, we need to distinguish between predictions about task-dependent aspects of language laterality in the population as a whole, as opposed to individual differences in lateralisation. Most theories of language lateralisation have focused on how language functions are lateralised in the brain in typical humans, without regard to individual differences. For instance, Hickok and Poeppel's (2007) dual route model of speech processing contrasts a dorsal stream from superior temporal to premotor cortices via the arcuate fasciculus, which is associated with sensorimotor integration of auditory speech sounds and articulatory motor actions; and a ventral stream from temporal cortex to anterior inferior frontal gyrus, which is involved in access to conceptual memory and identification of auditory objects (Rauschecker, 2018). Hickok and Poeppel proposed that the dorsal stream is left lateralized, whereas the ventral stream is bilateral.  This kind of theory makes predictions about task-related differences that can be assessed by comparing mean laterality indices in a sample. Thus, the prediction from the dual route model is that mean laterality indices for tasks involving the dorsal stream will show left-lateralisation, whereas indices from tasks primarily involving the ventral stream will not.  In practice, our ability to test this prediction depends on having reliable tasks that load predominantly on one stream or the other.
+
+The picture is complicated, however, by individual differences; as well as the typical pattern of language laterality, some individuals show the reverse pattern - right-hemisphere language. A subset of people with bilateral language has also been described, but this is not well-specified. These could be people who are strongly lateralized, but with different direction of lateralization for different tasks, or people who engage both hemispheres equally during language tasks. It may in practice be difficult to distinguish the latter situation from poor test reliability, where noisy measurement masks genuine lateralization.  To gain insights into individual differences, we need to move away from a focus on mean laterality indices, to look at covariances between indices on different measures. Laterality indices across tasks may be positively correlated even if overall left-lateralisation is weak or absent, if the population consists of a mixture of those who are reliably left-lateralised and those who are right-lateralised. At the level of population means, this would look like bilateral function, but the mean would misrepresent the true situation.
+
+Viewed this way, it looks as if we could model our data with a classic regression approach, where an observed score is determined by 3 terms:
+
+a - an intercept that corresponds to a task-specific population bias
+
+b - a term corresponding to stable individual differences in extent of lateralisation
+
+e - an error term
+
+One question then is whether there is evidence of a x b, which would be significant if there were people whose personal laterality varied from task to task
+
+Need to look at correlations to see what it looks like; vary the weighting of task and individual terms
+
+This simulation allows for task-specific bias between tasks, and an individual-specific bias that is constant.
+N.B. it also emphasises a distinction between ***stability*** (i.e. the mean for a given task will tend to be the same from one occasion to another) and ***reliability*** (i.e. the rank ordering of individuals on a task will tend to be the same from one occasion to another)
+
+Without either bias, data is random: no stability, no reliability and no laterality
+
+With only task bias, one sees stable task effects but no reliability
+
+With only subject bias, no stable task effect but reliable
+
+With an interaction between task and subject, individual tasks show stable and reliable effect, differing from task to task
+
+
+
+
+```{r modelsim, echo=FALSE}
+
+
+nsub <- 5000 #use large N to get accurate prediction of r values
+errwt <- 1 #weighting for error term
+mycondition <-0
+fordemo <-data.frame(matrix(NA,nrow=nsub,ncol=24))#holds data for demo plots
+colnames(fordemo)<-c('A1.1','A2.1','E1.1','E2.1','F1.1','F2.1',
+                     'A1.2','A2.2','E1.2','E2.2','F1.2','F2.2',
+                     'A1.3','A2.3','E1.3','E2.3','F1.3','F2.3',
+                     'A1.4','A2.4','E1.4','E2.4','F1.4','F2.4')
+for (taskwt in c(0,1)){
+  for (indwt in c(0,1)){
+    mycondition<-mycondition+1 #keep track of different conditions
+print(paste('Task weighting is ',taskwt))
+print (paste('Subject weighting is ', indwt))
+
+taskeffect <-c(2,1.6,1.4,1.2,1,0) #simulate 6 tasks
+indeffect <- rnorm(nsub) #simulate nsub people
+thisrow <- 0
+myscore <- data.frame(matrix(NA,nrow=length(indeffect),ncol=2*length(taskeffect)+1))
+colnames(myscore) <- c('ID','A1','A2','B1','B2','C1','C2','D1','D2','E1','E2','F1','F2')
+  for (j in 1: length(indeffect)){
+    thisrow<-thisrow+1
+    thiscol <- 1
+    myscore[thisrow,thiscol]<-thisrow
+    for (i in 1:length(taskeffect)){
+    for (k in 1:2){ #2 test occasions
+      thiscol<-thiscol+1
+    # The next line simulates situation with task x person interaction
+    #  myscore[thisrow,thiscol]<-taskeffect[i]+indeffect[j]+taskeffect[i]*indeffect[j]+rnorm(1)
+     #  The next line simulates situation without task x person interaction
+       myscore[thisrow,thiscol]<-taskwt*taskeffect[i]+indwt*indeffect[j]+errwt*rnorm(1)
+   
+    }
+      
+  }
+  }
+if(taskwt==0){myscore<-myscore+1} #just to make more realistic - ie overall bias
+
+
+mycolrange<-(6*(mycondition-1)+1):(6*mycondition)
+fordemo[,mycolrange]<-cbind(myscore$A1,myscore$A2,myscore$E1,myscore$E2,myscore$F1,myscore$F2)
+#in terms of correlations and means, data look v like real data!
+mymeans <- round(colMeans(myscore[,2:ncol(myscore)]),3)
+print('Task means')
+print(mymeans)
+
+mycorr <-rcorr(as.matrix(myscore[,2:ncol(myscore)]))
+myreliab <- c(mycorr$r[1,2],mycorr$r[3,4],mycorr$r[5,6],mycorr$r[7,8],mycorr$r[9,10],mycorr$r[11,12])
+print('reliabilities')
+print(myreliab)
+print('Median reliability')
+print(median(myreliab))
+mycrosstask <- c (mycorr$r[1,3],mycorr$r[1,5],mycorr$r[1,7],mycorr$r[1,9],mycorr$r[1,11],
+                       mycorr$r[3,5],mycorr$r[3,7],mycorr$r[3,9],mycorr$r[3,11],
+                      mycorr$r[5,7],mycorr$r[5,9],mycorr$r[5,11],
+                      mycorr$r[7,9],mycorr$r[7,11],
+                      mycorr$r[9,11])
+print('Cross-task correlations')
+print(mycrosstask)
+print('Median cross-task correlation')
+print(median(mycrosstask))
+ 
+  }
+}
+```
+
+The simulations confirm that the means don't affect the correlations - ie task model and subject model are independent.
+
+```{r demoplot}
+#Initial attempt to look at plots of within-task vs between-task correlations
+#We just consider tasks A and E - these have different LI means.
+for (k in 1:4){
+  pdf(paste0("SampleGraph",k,".pdf"),width=7,height=7)
+  kbase<-6*(k-1) #NB there are 6 cols but we only plot 4
+par(mfrow=c(2,2))
+mypairs<-matrix(c(1,2,1,3,3,4,2,4),nrow=4,byrow=TRUE)
+  for (i in 1:4){
+      a<-mypairs[i,1]+kbase
+      b<-mypairs[i,2]+kbase
+#NB we only plot first 100 cases, but correlations computed for the whole dataset
+    plot(fordemo[1:100,a],fordemo[1:100,b],xlab=colnames(fordemo)[a],ylab=colnames(fordemo)[b],xlim=c(-3,5),ylim=c(-3,5),cex=.75)
+   abline(h=mean(fordemo[,a]))
+   abline(v=mean(fordemo[,b]))
+   rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),3))
+   text(-2,3.5,rbit)
+  }
+dev.off()
+}
+```
+
+This has clarified that the key points to emphasise in a figure are that:
+a) Means and covariances are independent - adding subject term to model affects covariance, and adding task term affects means. 
+b) Differing means don't affect covariances
+c) Correlations within-task and between-task don't differ unless interaction term (not previously modeled)
+
+So we need a nice figure showing a sample within-task and between-task correlation, with differing means, for models with increasing N terms
+
+
+```{r demoplotshort}
+ pdf(paste0("SimModels.pdf"),width=7,height=10)
+par(mfrow=c(4,2))  #4 rows (1 per model) and 2 cols (for test-retest and cross-task)
+#par(mar=c(3.5,4,1,1)) #bottom , left, top , right
+#see: https://stackoverflow.com/questions/19422625/mtext-y-axis-label-that-covers-a-two-tile-plot
+  par(oma=c(3.5, 4, 2, 1)) #outer margin specified for each row - but this then starts new page for each row
+  #But if oma is specified before loop, then all titles written on top of each other
+
+for (k in 1:5){ #cycle through each model: one per row
+  par(mar = c(5,3,1,0)) # regular margin: use outer margin below for overarching legends etc
+#bottom , left, top , right
+ if(k != 2){ #we don't need model 2 - this is subj effect and no task effect
+ 
+    kbase<-6*(k-1) #NB there are 6 cols (3 vars) but we only plot 2 vars, A and E
+
+
+#for the interaction condition, create a column for E variables in different order
+    #This means both variables still reliable, but they don't intercorrelate
+fordemo$A1.5<-fordemo$A1.4
+fordemo$A2.5<-fordemo$A2.4
+myrank<-rank(fordemo$E1.4)
+fordemo$E1.5<-fordemo$E1.4[myrank]
+fordemo$E2.5<-fordemo$E2.4[myrank]
+mypairs<-matrix(c(1,2,1,3),nrow=2,byrow=TRUE)
+  for (i in 1:2){
+      a<-mypairs[i,1]+kbase
+      b<-mypairs[i,2]+kbase
+myxlab<-'LI Task A(1)'
+myylab<-'LI Task A(2)'
+if(i==2){myylab<-'LI Task B(1)'}
+    plot(fordemo[1:150,a],fordemo[1:150,b],xlim=c(-3,5),ylim=c(-3,5),pch=16,col='blue',frame.plot=FALSE,
+         xlab='',ylab='')
+    #for subscript labels see https://stackoverflow.com/questions/10156417/subscripts-in-plots-in-r
+    #the line bit of command moves title down if negative
+    if (k==1){
+    title(expression('1. Population bias: LI'['ij']*' = a + e'['ij']),outer=TRUE,line=-.5)
+     }
+        if (k==3){
+    title(expression('2. Task effect: LI'['ij']*' = a + t'['i']*' + e'['ij']),outer=TRUE,line=-17.5)}
+            if (k==4){
+    title(expression('3. Person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + e'['ij']),outer=TRUE,line=-35)}
+               if (k==5){
+    title(expression('4. Task x person effect: LI'['ij']*' = a + t'['i']*' + p'['j']*' + x'['ij']*' + e'['ij']),outer=TRUE,line=-53)}
+
+    #   #These commands also ensure label close to axis with line =2 command
+ 
+    title(ylab=myylab,line=2,cex.lab=.8)
+    title(xlab=myxlab,line=2,cex.lab=.8)
+    #previously used abline, but lines extend too far: segments allows control of start/end
+    #use to illustrate means for different tasks
+  segments(y0=-3,y1=4,x0=mean(fordemo[,a]),x1=mean(fordemo[,a]),lty=2,col='red')
+   segments(x0=-3,x1=4,y0=mean(fordemo[,b]),y1=mean(fordemo[,b]),lty=2,col='red')
+   segments(y0=-3,y1=4,x0=0,x1=0,col='grey')
+   segments(x0=-3,x1=4,y0=0,y1=0,col='grey')
+
+   rbit<-paste('r = ',round(cor(fordemo[,a],fordemo[b]),1))
+   prebit<-'Test-retest \n'
+   if(i==2){prebit <- 'Cross-task \n'}
+   text(-3,3.5,paste(prebit,rbit),pos=4) #pos=4 specifies left-justify
+  }
+
+ }
+}
+dev.off()
+```
