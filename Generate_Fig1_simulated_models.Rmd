@@ -11,7 +11,9 @@ require(Hmisc)
 ```
 
 # Background
-This file was used to create the original for Figure 1. Updated 18 Jan 2019 to take on board reviewer commments and to correct the means for R hand panel (x and y means were transposed in submitted paper)
+This file was used to create the original for Figure 1. 
+
+Updated 18 Jan 2019 to take on board reviewer commments and to correct the means for R hand panel (x and y means were transposed in submitted paper)
 
 ##Laterality at the level of the population and the individual
 In considering whether or not language laterality is unitary, we need to distinguish between predictions about task-dependent aspects of language laterality in the population as a whole, as opposed to individual differences in lateralisation. Most theories of language lateralisation have focused on how language functions are lateralised in the brain in typical humans, without regard to individual differences. For instance, Hickok and Poeppel's (2007) dual route model of speech processing contrasts a dorsal stream from superior temporal to premotor cortices via the arcuate fasciculus, which is associated with sensorimotor integration of auditory speech sounds and articulatory motor actions; and a ventral stream from temporal cortex to anterior inferior frontal gyrus, which is involved in access to conceptual memory and identification of auditory objects (Rauschecker, 2018). Hickok and Poeppel proposed that the dorsal stream is left lateralized, whereas the ventral stream is bilateral.  This kind of theory makes predictions about task-related differences that can be assessed by comparing mean laterality indices in a sample. Thus, the prediction from the dual route model is that mean laterality indices for tasks involving the dorsal stream will show left-lateralisation, whereas indices from tasks primarily involving the ventral stream will not.  In practice, our ability to test this prediction depends on having reliable tasks that load predominantly on one stream or the other.
