@@ -45,7 +45,9 @@ This section sets up the R environment and has a set of toggles for the user to 
 ########### Set toggles before running! ################################################################
 
 # These toggles determine the parameters used in the analysis
-RHonly            <- 0 # Set to 0 if want to include L handers. MANUSCRIPT = 0; PREREGISTRATION = 0
+RHonly            <- 0 # Set to 0 if want to include both R and L handers. 
+                        # Set to -1 for just L handers. MANUSCRIPT = 0; PREREGISTRATION = 0
+Fonly             <- 0 # Set to 1 for females only
 Init30only        <- 0 # Set to 1 to include just the initial preregistered group (23 R and 7 L hander). MANUSCRIPT = 0; PREREGISTRATION = 1
 removesubs        <- 1 # Set to 1 to remove specific participants. MANUSCRIPT = 0; PREREGISTRATION = 0
 if (removesubs == 1){ removesubIDs <- c(102,120,129,139,142)} #specific participant ID to remove.
@@ -67,7 +69,6 @@ run_facscores     <- 1 # Set to 1 to run factor scores plot after drop one analy
 # These toggles are used when generating the write-up section
 tabcount         <- 1  #Start of counter for tables in Results section
 figcount         <- 5  #Start of counter for figs in Results section
-a=1
 
 ########################################################################################################
 
@@ -88,7 +89,7 @@ library(magrittr)
 library(svglite)
 library(rsvg)
 library(knitr)
-library(dmm) #added for 'unfactor' command : nb this messes up some dplyr commands, need to specify dplyr explicitly, e.g. dplyr::select
+library(dmm) #added for 'unfactor' command : nb this messes up some dplyr commands, need to specify dplyr explicitly, e.g. dplyr::select for 'select' command.
 
 ```
 
@@ -101,10 +102,10 @@ This section reads in the A2_Participant_Info_Bangor.csv file and reports basic 
 #NB - I deleted a top line from this file, and additional rows from end.
 #Renamed Handedness as handedness for compatibility
 #NB age is not recorded on this file
-particdata<-read.csv('Original_A2_Participant_Info.csv',header=TRUE)
+particdata<-read.csv('A2_Participant_Info_hand.csv',header=TRUE)
 particdatb<-read.csv('A2_Participant_Info_Bangor.csv',header=TRUE) 
 #
-particdat<-rbind(particdata[,c(1,2,4)],particdatb[,c(1,2,3)])
+particdat<-rbind(particdata[,c(1,2,4,5)],particdatb[,c(1,2,3,4)])
 rhanded<-which(particdat$handedness=='R')
 particdat$handcode<-2
 particdat$handcode[rhanded]<-1
@@ -118,6 +119,15 @@ if (Init30only==1) {# original sample from prereg analysis
 if (RHonly==1){ #See RHonly toggle
   print('R handers only included in analysis')
   particdat <- filter(particdat,handedness=='R')
+}
+
+if (RHonly== -1){ #See RHonly toggle
+  print('L handers only included in analysis')
+  particdat <- filter(particdat,handedness=='L')
+}
+if (Fonly== 1){ #See RHonly toggle
+  print('Females only included in analysis')
+  particdat <- filter(particdat,Gender=='F')
 }
 if (removesubs>0){
   w<-which(particdat$ID %in% removesubIDs)
@@ -1131,7 +1141,9 @@ if (run_facscores == 1){ # See run_facscores toggle
    w1<-which(is.na(alltask$f1score))
   w2<-which(is.na(alltask$f2score))
   w<-unique(w1,w2)
-  alltaskf<-alltask[-w,]
+  alltaskf<-alltask
+  if(length(w)>0){
+  alltaskf<-alltask[-w,]}
   #check for bivariate outliers
 facmod <- lm(alltaskf$f1score~alltaskf$f2score)
 alltaskf$cookdist <- cooks.distance(facmod)
@@ -1276,7 +1288,7 @@ Jacknife estimates considered for model SEs, which can be compared with standard
 ```{R jackknife}
 if (run_dropone == 1){ # Only runs if dropone has also run
   # Calculates the jackknife estimates (bias corrected) and the bias. Then prints out corrected estimates vs the "real" estimates from the original model 8 run.
-
+#NB based on dropone_paths: this is matrix with nsub rows and 23 cols, with the columns corresponding to path estimates in the model.
  n=myrow
 
  #jacknife summary
@@ -1319,18 +1331,62 @@ In study with Holly Rutherford, we were interested in looking at the difference 
 In this analysis, I just subtracted the LI for List Generation and LI for Sentence Generation, and then compared L and R handers. This does support Mazoyer et al: significant difference for L vs R handers, and ALL extreme R-lateralised are left-handers. (Though actually it is pretty similar even without the subtraction!)
 
 ```{r mazoyerdiff}
+#exploring various links with handedness
+if(RHonly==0){
 mydiff<-(alltaskall$SentGen1+alltaskall$SentGen2)/2-(alltaskall$ListGen1+alltaskall$ListGen2)/2
 t.test(mydiff~particdat$handcode)
 plot(mydiff~particdat$handcode)
 
 senttot<-(alltaskall$SentGen1+alltaskall$SentGen2)/2
 listtot<-(alltaskall$ListGen1+alltaskall$ListGen2)/2
+semtot<-(alltaskall$SemDec1+alltaskall$SemDec2)/2
+phontot<-(alltaskall$PhonDec1+alltaskall$PhonDec2)/2
+comptot<-(alltaskall$SentComp1+alltaskall$SentComp2)/2
+jabbertot<-(alltaskall$Jabber1+alltaskall$Jabber2)/2
 t.test(senttot~particdat$handcode)
 plot(senttot~particdat$handcode)
 t.test(listtot~particdat$handcode)
+plot(listtot~particdat$handcode)
+t.test(semtot~particdat$handcode)
+plot(semtot~particdat$handcode)
+t.test(phontot~particdat$handcode)
+plot(phontot~particdat$handcode)
+t.test(comptot~particdat$handcode)
+plot(comptot~particdat$handcode)
+t.test(jabbertot~particdat$handcode)
+plot(jabbertot~particdat$handcode)
+t.test(alltask$f1score~particdat$handcode)
+t.test(alltask$f2score~particdat$handcode)
+
+phonsem<-phontot-semtot
+t.test(phonsem~particdat$handcode)
+for (i in 1:nrow(alltask)){
+alltask$Nleftlat[i]<-length(which(c(listtot[i],phontot[i],semtot[i],senttot[i],comptot[i],
+                                    jabbertot[i])>0))
+}
+table(alltask$Nleftlat,particdat$handcode)
+t.test(alltask$Nleftlat,particdat$handcode)
+
+plot(alltask$Nleftlat~particdat$handcode)
+t.test(alltask$Nleftlat~particdat$handcode)
+
+alltask$handcode<-particdat$handcode
+alltask$EHI<-particdat$EHI
+alltaskhand<-alltask[order(alltask$f1score),]
+
+alltaskhand$lowf1<-0
+w<-which(alltaskhand$f1score<0)
+alltaskhand$lowf1[w]<-1
+t.test(alltaskhand$EHI~alltaskhand$lowf1)
+alltaskhand$consistent<-0
+w<-c(which(alltaskhand$Nleftlat==6),which(alltaskhand$Nleftlat==0))
+alltaskhand$consistent[w]<-1
+t.test(alltaskhand$EHI~alltaskhand$consistent)
+plot(alltaskhand$EHI~alltaskhand$consistent)
 
 
 
+}
 ```
 
 ##Session information
