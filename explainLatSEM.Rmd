@@ -1,0 +1,263 @@
+---
+title: "Structural equation modeling of laterality"
+output: html_notebook
+---
+
+There are 2 sorts of questions we can ask about brain lateralisation.  
+
+Q1. Is a particular function lateralised, or do both sides of the brain work together?  
+Q2. Is there variation in lateralisation in individuals?  
+
+In COLA we are especially interested in a further question:  
+Q3. Is there a general 'laterality' factor that affects lateralisation of a range of functions, or is lateralisation determined separately for different functions?
+
+Historically, there's been a tendency to assume the answer to Q3 is YES, at least if we stick to the domain of language, but the evidence has not been very clearcut.  
+
+We can simulate data to help us answer all three questions. 
+
+We'll start by simulating data on one task, X. This could be Word Generation, for instance.  We'll simulate laterality indices on X for 100 people. For the moment, we'll just do this directly, by simulating normally distributed random numbers: we could simulate the L side and the R side separately and then compute the LI, but this gets a bit more complicated and we'll keep things simple for now.
+
+Before I run the chunk below, can you predict what the plot will look like?
+
+```{r makedata}
+myN <- 100
+mymean <- -1
+mysd <- 1
+dataX <- rnorm(myN, mymean, mysd) #normally distributed random numbers
+plot(dataX,main="Figure 1")
+abline(h=0) #horizontal line at zero
+```
+
+How would we use data like this to check Q1?
+Q1. Is a particular function lateralised, or do both sides of the brain work together?  
+
+```{r testQ1}
+t.test(dataX)
+```
+
+Q2. Is there variation in lateralisation in individuals?  
+
+We've simulated the data so there is variation; what would you need to change in the simulation to make is so there is no variation?  
+
+Is it plausible that there would be no variation?  
+
+What determines variation between people?  
+
+Variation that is just caused by unreliable measurement is not interesting.  We're more interested in variation that is a stable individual trait. How can we separate that from unreliable measurement?
+
+```{r twomeasures}
+
+myN <- 100
+mymean <- -1
+mysd <- 1
+dataX1 <- rnorm(myN, mymean, mysd) 
+dataX2 <- rnorm(myN, mymean, mysd) 
+plot(dataX1,dataX2,main='Figure 2')
+abline(h=0)
+abline(v=0)
+mycor <- cor(dataX1,dataX2)
+rtext <- paste0('r = ', round(mycor,3)) #embed the correlation in a text, round to 3 decimal places
+text(-3,-2,rtext )  #plot the text at location -3,-2 on the plot
+```
+
+There's no relation between the two datasets - could have come from two different people. How can we simulate data where there is a relation?
+```{r twocorrmeasures}
+
+myN <- 100
+mymean <- -1
+individual_sd <- 3 #SD that determines how much variation there is between people
+dataX <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+mysd <- 1
+dataX1 <- rnorm(myN, dataX, mysd) 
+dataX2 <- rnorm(myN, dataX, mysd) 
+plot(dataX1,dataX2,main='Figure 3')
+abline(h=0)
+abline(v=0)
+mycor <- cor(dataX1,dataX2)
+rtext <- paste0('r = ', round(mycor,3)) #embed the correlation in a text, round to 3 decimal places
+text(-3,-2,rtext )  #plot the text at location -3,-2 on the plot
+```
+
+We've now separated out variability that reflects inherent differences between people (individual_sd) and variability that each person shows around their average (mysd). The bigger the ratio between these two (individual_sd/mysd), the higher the test-retest reliability will be.
+
+Questions?
+
+We can move on to Q3:
+Q3. Is there a general 'laterality' factor that affects lateralisation of a range of functions, or is lateralisation determined separately for different functions?
+
+In fact, the code we used for twocorrmeasures above, could equally well be used to simulate LI for two different tasks measured in the same person.  
+
+Suppose we now have two tasks, X and Y, and we plot one against the other and it looks like Figure 4
+
+```{r simXYfig4}
+
+myN <- 100
+mymean <- -1
+individual_sd <- .5 #SD that determines how much variation there is between people
+dataT <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+
+mysd <- 2
+dataX <- rnorm(myN, dataT, mysd) 
+dataY <- rnorm(myN, dataT, mysd) 
+plot(dataX,dataY,main='Figure 4')
+abline(h=0)
+abline(v=0)
+mycor <- cor(dataX,dataY)
+rtext <- paste0('r = ', round(mycor,3)) #embed the correlation in a text, round to 3 decimal places
+text(-3,-2,rtext )  #plot the text at location -3,-2 on the plot
+```
+
+What can we conclude?
+
+Problem is, it is ambiguous. It could EITHER mean the two functions are independent, or that there is a very unreliable measure that just masks the true effect.
+One way to find out would be to measure each task twice. That way we could check the test-retest reliability of each task. If it is high, but the tasks are still uncorrelated, we can have confidence that they are actually independent.
+
+Here we simulate X and Y that are truly independent; one is derived from TX and the other from TY.
+
+
+```{r simXYtwicex}
+require(rethinking) #contains pairs function: for plotting correlation arrays
+myN <- 100
+mymean <- -1
+individual_sd <- 1 #SD that determines how much variation there is between people
+dataTX <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+dataTY <- rnorm(myN, mymean, individual_sd) #different T for the Y task
+par(mfrow=c(1,2)) #plot 1 row and 2 column
+mysd <- 1
+dataX1 <- rnorm(myN, dataTX, mysd) 
+dataY1 <- rnorm(myN, dataTY, mysd) 
+dataX2 <- rnorm(myN, dataTX, mysd) 
+dataY2 <- rnorm(myN, dataTY, mysd) 
+
+cor(cbind(dataX1,dataX2,dataY1,dataY2))
+pairs(cbind(dataX1,dataX2,dataY1,dataY2))
+```
+You can see that the correlations for the same task at time 1 and time 2 are high, whereas the cross-task correlations are low.  
+You can play with the simulation - you will find that the test-retest correlation within each task will get lower as the ratio of individual_sd to mysd gets lower.  
+The correlation between X and Y will never be high - they have been simulated to be independent.
+
+Contrast this with the next simulation; this is very similar, except that X and Y are based on the same variable, dataT. So the cross-task correlations are as high as the within-task correlations.
+
+```{r simXYtwiceb}
+
+myN <- 100
+mymean <- -1
+individual_sd <- 2 #SD that determines how much variation there is between people
+dataT <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+
+par(mfrow=c(1,2)) #plot 1 row and 2 column
+mysd <- 2
+dataX1 <- rnorm(myN, dataT, mysd) 
+dataY1 <- rnorm(myN, dataT, mysd) 
+dataX2 <- rnorm(myN, dataT, mysd) 
+dataY2 <- rnorm(myN, dataT, mysd) 
+cor(cbind(dataX1,dataX2,dataY1,dataY2))
+pairs(cbind(dataX1,dataX2,dataY1,dataY2))
+
+```
+
+Questions?
+
+
+What about means?  
+
+One thing that all this modeling taught us is that predictions about means are quite separate from predictions about individual differences.
+
+We can rerun the previous simulation so that the mean of task X is not lateralised,  but task Y is left-lateralised.
+
+How would you fix the code to show that?  
+What effect do you think this will have on the pattern of correlations?
+
+```{r simXYtwice}
+
+myN <- 100
+mymean <- -1
+individual_sd <- 3 #SD that determines how much variation there is between people
+dataT <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+
+par(mfrow=c(1,2)) #plot 1 row and 2 column
+mysd <- 1
+dataX1 <- rnorm(myN, (dataT+1), mysd) 
+dataY1 <- rnorm(myN, dataT, mysd) 
+dataX2 <- rnorm(myN, (dataT+1), mysd) 
+dataY2 <- rnorm(myN, dataT, mysd) 
+cor(cbind(dataX1,dataX2,dataY1,dataY2))
+par(mfrow=c(1,1))
+pairs(cbind(dataX1,dataX2,dataY1,dataY2))
+plot(dataX1,dataY1,main='Figure 5')
+abline(h=0)
+abline(v=0)
+```
+
+I did not predict we would see results like this, but we did! So we had tasks that were not lateralised overall, but which were correlated with tasks that were lateralised - suggesting that there was some common lateralisation factor that determined how left-ward or right-ward you were, but which varied from task to task in terms of how much of a nudge it gave to the left.  
+
+### Brief digression for right-lateralised tasks.  
+
+I first started to get interested in these sorts of issues when we used fTCD to look at lateralisation of verbal vs nonverbal tasks. 
+There's a very plausible theory that has argued that these two lateralities will be complementary - i.e. the more left-lateralised you are for language, the more right-lateralised you will be for nonverbal tasks. It's as if strongly lateralised language uses up all the space on the left side, so nonverbal functions are forced to the right.  
+
+Suppose that was true. If you had a group of people where you had a laterality index for a language task and laterality index for a nonverbal task, what would you expect to see when you plotted them?  
+
+How would we adjust our simulation to show that scenario?
+
+```{r simcomplementary}
+
+myN <- 100
+mymean <- -1
+individual_sd <- 2 #SD that determines how much variation there is between people
+dataT <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+
+par(mfrow=c(1,2)) #plot 1 row and 2 column
+mysd <- 2
+dataX1 <- rnorm(myN, dataT, mysd) 
+dataY1 <- rnorm(myN, -dataT, mysd) 
+dataX2 <- rnorm(myN, dataT, mysd) 
+dataY2 <- rnorm(myN, -dataT, mysd) 
+cor(cbind(dataX1,dataX2,dataY1,dataY2))
+pairs(cbind(dataX1,dataX2,dataY1,dataY2))
+
+```
+
+What if the two tasks were independent, but lateralised in different directions?
+
+```{r simcomplementaryindependentr}
+require(rethinking) #contains pairs function: for plotting correlation arrays
+myN <- 100
+mymean <- -1
+individual_sd <- 1 #SD that determines how much variation there is between people
+dataTX <- rnorm(myN, mymean, individual_sd)  #person-specific value of 'true' trait
+dataTY <- rnorm(myN, -mymean, individual_sd) #different T for the Y task
+par(mfrow=c(1,2)) #plot 1 row and 2 column
+mysd <- 1
+dataX1 <- rnorm(myN, dataTX, mysd) 
+dataY1 <- rnorm(myN, dataTY, mysd) 
+dataX2 <- rnorm(myN, dataTX, mysd) 
+dataY2 <- rnorm(myN, dataTY, mysd) 
+par(mfrow=c(1,1))
+cor(cbind(dataX1,dataX2,dataY1,dataY2))
+pairs(cbind(dataX1,dataX2,dataY1,dataY2))
+plot(dataX1,dataY1,main='Figure 6')
+abline(h=0)
+abline(v=0)
+```
+Our data looked like this pattern - i.e. most people left-lateralised for the language task and right-lateralised for the nonverbal task, but no complementary distribution - atypical cases were mostly not 'reversed' for both tasks.
+
+## Structural equation modeling - logic
+
+What I've shown you is that depending on the underlying model used to generate data, you expect different patterns of correlations between variables. This method gets particularly useful if you have repeated measures of variables, as you can then distinguish lack of correlation that is just due to unreliable tasks from lack of correlation reflecting real independence. 
+
+In structural equation modeling, all you are basically doing is comparing an observed set of correlations from a dataset with a set of correlations that you predict from your model.
+
+SEM is mostly concerned with covariances - these are just like correlations, but they preserve the original scale of measurement. If you work with z-scores, they are the same as correlations.
+
+Correlation between two variables is the covariance between both variables divided by the product of the standard deviation of the variables. (So if you have z-scores, the standard deviation is one, and it makes no difference!)
+
+To run a SEM you have to first specify a model: this contains measured variables and latent variables, and the paths between them. 
+
+So if we had a very simple model of laterality that assumed a single laterality factor (like the model with just dataT determining all tasks), we would have one latent variable, T, with paths to X and Y. We also assume there is measurement error for X and Y (similar to the mysd term in our simulations).  
+
+The SEM algorithm will then play around with various estimates of paths from T to X and Y, and estimates of measurement error of X and Y, to try to find the combination of estimates that gives the best fit to the observed values of covariances that you give it from your data.
+
+You can also get an estimate of how good a fit the model is.
+(to be resumed...)!
+
